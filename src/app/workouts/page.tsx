@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 export default async function WorkoutsListPage() {
   let workouts: Awaited<ReturnType<typeof api.workouts.list>> = [];
   let error: string | null = null;

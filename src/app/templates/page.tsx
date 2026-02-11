@@ -2,6 +2,8 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 
+export const dynamic = "force-dynamic";
+
 export default async function TemplatesPage() {
   let templates: Awaited<ReturnType<typeof api.templates.list>> = [];
   let error: string | null = null;

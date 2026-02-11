@@ -3,6 +3,8 @@ import { api } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+export const dynamic = "force-dynamic";
+
 export default async function StatsPage() {
   const year = new Date().getFullYear();
   const month = new Date().getMonth() + 1;

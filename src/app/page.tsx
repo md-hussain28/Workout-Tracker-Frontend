@@ -6,6 +6,8 @@ import { api } from "@/lib/api";
 
 const APP_NAME = "Workout Tracker";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   let recentWorkouts: Awaited<ReturnType<typeof api.workouts.list>> = [];
   let error: string | null = null;

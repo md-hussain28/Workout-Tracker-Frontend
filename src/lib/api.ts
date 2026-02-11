@@ -1,4 +1,8 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof process.env.NEXT_PUBLIC_VERCEL_URL === "string"
+    ? "https://workout-tracker-backend-ahka.onrender.com/api/v1"
+    : "http://localhost:8000/api/v1");
 
 async function fetchApi<T>(
   path: string,

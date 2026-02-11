@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 function modeLabel(mode: string) {
   switch (mode) {
     case "weight_reps":
