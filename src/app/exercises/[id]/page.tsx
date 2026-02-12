@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { notFound, useParams } from "next/navigation";
 import Link from "next/link";
@@ -9,6 +10,7 @@ import {
   Hash,
   Calendar,
   ArrowLeft,
+  CalendarRange,
 } from "lucide-react";
 import {
   LineChart,
@@ -17,9 +19,6 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
   BarChart,
   Bar,
   AreaChart,
@@ -31,14 +30,51 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
-const PIE_COLORS = [
-  "hsl(262, 80%, 55%)",
-  "hsl(180, 60%, 50%)",
-  "hsl(85, 60%, 55%)",
-  "hsl(25, 80%, 55%)",
-  "hsl(300, 55%, 50%)",
-];
+const TIME_RANGES = [
+  { value: "1w", label: "1 week" },
+  { value: "1m", label: "1 month" },
+  { value: "2m", label: "2 months" },
+  { value: "3m", label: "3 months" },
+  { value: "1y", label: "1 year" },
+  { value: "all", label: "All time" },
+  { value: "custom", label: "Custom range" },
+] as const;
+
+type TimeRangeValue = (typeof TIME_RANGES)[number]["value"];
+
+function getRangeDates(
+  range: TimeRangeValue,
+  customFrom?: string,
+  customTo?: string
+): { from: Date; to: Date } | null {
+  const to = new Date();
+  to.setHours(23, 59, 59, 999);
+  if (range === "custom" && customFrom && customTo) {
+    const from = new Date(customFrom);
+    const toDate = new Date(customTo);
+    toDate.setHours(23, 59, 59, 999);
+    return { from, to: toDate };
+  }
+  const from = new Date();
+  if (range === "1w") from.setDate(from.getDate() - 7);
+  else if (range === "1m") from.setMonth(from.getMonth() - 1);
+  else if (range === "2m") from.setMonth(from.getMonth() - 2);
+  else if (range === "3m") from.setMonth(from.getMonth() - 3);
+  else if (range === "1y") from.setFullYear(from.getFullYear() - 1);
+  else if (range === "all") return null;
+  from.setHours(0, 0, 0, 0);
+  return { from, to };
+}
 
 function modeLabel(mode: string) {
   switch (mode) {
@@ -52,6 +88,9 @@ function modeLabel(mode: string) {
 export default function ExerciseDetailPage() {
   const params = useParams<{ id: string }>();
   const exerciseId = parseInt(params.id, 10);
+  const [timeRange, setTimeRange] = useState<TimeRangeValue>("1m");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
 
   const { data: exercise, isLoading: exLoading } = useQuery({
     queryKey: ["exercise", exerciseId],
@@ -69,6 +108,30 @@ export default function ExerciseDetailPage() {
     queryFn: () => api.exercises.getStats(exerciseId),
     enabled: !isNaN(exerciseId),
   });
+
+  const range = useMemo(
+    () => getRangeDates(timeRange, customFrom, customTo),
+    [timeRange, customFrom, customTo]
+  );
+
+  const filteredStats = useMemo(() => {
+    if (!stats) return null;
+    if (!range) return stats;
+    const { from, to } = range;
+    const inRange = (dateStr: string) => {
+      const d = new Date(dateStr);
+      return d >= from && d <= to;
+    };
+    return {
+      ...stats,
+      one_rm_progression: stats.one_rm_progression.filter((p) => inRange(p.date)),
+      volume_history: stats.volume_history.filter((p) => inRange(p.date)),
+      max_weight_history: stats.max_weight_history.filter((p) => inRange(p.date)),
+      recent_history: stats.recent_history.filter((h) =>
+        h.started_at ? inRange(h.started_at) : false
+      ),
+    };
+  }, [stats, range]);
 
   if (isNaN(exerciseId)) return notFound();
 
@@ -173,8 +236,52 @@ export default function ExerciseDetailPage() {
         </div>
       )}
 
-      {stats && (
+      {stats && filteredStats && (
         <div className="space-y-4">
+          {/* Time range */}
+          <Card>
+            <CardContent className="py-4">
+              <div className="flex items-center gap-2 mb-2">
+                <CalendarRange className="size-4 text-muted-foreground" />
+                <Label className="text-sm font-medium">Time range</Label>
+              </div>
+              <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRangeValue)}>
+                <SelectTrigger className="w-full rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIME_RANGES.map((r) => (
+                    <SelectItem key={r.value} value={r.value} className="rounded-lg">
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {timeRange === "custom" && (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">From</Label>
+                    <Input
+                      type="date"
+                      value={customFrom}
+                      onChange={(e) => setCustomFrom(e.target.value)}
+                      className="rounded-xl mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">To</Label>
+                    <Input
+                      type="date"
+                      value={customTo}
+                      onChange={(e) => setCustomTo(e.target.value)}
+                      className="rounded-xl mt-0.5"
+                    />
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Overview Stats */}
           <div className="grid grid-cols-2 gap-3">
             <Card>
@@ -240,9 +347,9 @@ export default function ExerciseDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {stats.one_rm_progression.length > 1 ? (
+              {filteredStats.one_rm_progression.length > 1 ? (
                 <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={stats.one_rm_progression}>
+                  <LineChart data={filteredStats.one_rm_progression}>
                     <XAxis
                       dataKey="date"
                       tick={{ fontSize: 10 }}
@@ -296,9 +403,9 @@ export default function ExerciseDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {stats.volume_history && stats.volume_history.length > 0 ? (
+              {filteredStats.volume_history && filteredStats.volume_history.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={stats.volume_history}>
+                  <BarChart data={filteredStats.volume_history}>
                     <XAxis
                       dataKey="date"
                       tick={{ fontSize: 10 }}
@@ -350,9 +457,9 @@ export default function ExerciseDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {stats.max_weight_history && stats.max_weight_history.length > 0 ? (
+              {filteredStats.max_weight_history && filteredStats.max_weight_history.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={stats.max_weight_history}>
+                  <AreaChart data={filteredStats.max_weight_history}>
                     <defs>
                       <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="hsl(45, 93%, 47%)" stopOpacity={0.3} />
@@ -409,8 +516,8 @@ export default function ExerciseDetailPage() {
               <CardTitle className="text-base">Recent History</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {stats.recent_history.length > 0 ? (
-                stats.recent_history.map((h) => (
+              {filteredStats.recent_history.length > 0 ? (
+                filteredStats.recent_history.map((h) => (
                   <Link
                     key={h.workout_id}
                     href={`/workouts/${h.workout_id}`}
