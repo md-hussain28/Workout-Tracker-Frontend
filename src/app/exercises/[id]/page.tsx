@@ -20,11 +20,20 @@ import {
   PieChart,
   Pie,
   Cell,
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
+  Bar,
+  AreaChart,
+  Area,
 } from "recharts";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 const PIE_COLORS = [
   "hsl(262, 80%, 55%)",
@@ -53,7 +62,12 @@ export default function ExerciseDetailPage() {
     enabled: !isNaN(exerciseId),
   });
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsError,
+    error: statsErrorObj,
+  } = useQuery({
     queryKey: ["exerciseStats", exerciseId],
     queryFn: () => api.exercises.getStats(exerciseId),
     enabled: !isNaN(exerciseId),
@@ -141,6 +155,18 @@ export default function ExerciseDetailPage() {
           </Link>
         )}
       </div>
+
+      {statsError && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error loading statistics</AlertTitle>
+          <AlertDescription>
+            {statsErrorObj instanceof Error
+              ? statsErrorObj.message
+              : "Failed to load exercise statistics."}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {statsLoading && (
         <div className="space-y-4">
@@ -259,6 +285,122 @@ export default function ExerciseDetailPage() {
                   <TrendingUp className="size-8 mb-2 opacity-20" />
                   <p className="text-sm font-medium">Not enough data</p>
                   <p className="text-xs">Log more workouts to see progress chart</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Volume History Chart */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Hash className="size-5 text-primary" />
+                Volume History
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {stats.volume_history && stats.volume_history.length > 0 ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={stats.volume_history}>
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 10 }}
+                      tickFormatter={(v: string) =>
+                        new Date(v).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                      }
+                    />
+                    <YAxis tick={{ fontSize: 10 }} width={40} />
+                    <Tooltip
+                      cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "0.75rem",
+                        fontSize: 12,
+                      }}
+                      labelFormatter={(v) =>
+                        new Date(String(v)).toLocaleDateString(undefined, {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                        })
+                      }
+                      formatter={(value) => [Number(value).toLocaleString(), "Volume"]}
+                    />
+                    <Bar
+                      dataKey="volume"
+                      fill="hsl(262, 80%, 55%)"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[200px] flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed rounded-xl bg-muted/20">
+                  <Hash className="size-8 mb-2 opacity-20" />
+                  <p className="text-sm font-medium">No volume data</p>
+                  <p className="text-xs">Log workouts to see volume history</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Max Weight History Chart */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Trophy className="size-5 text-amber-500" />
+                Max Weight History
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {stats.max_weight_history && stats.max_weight_history.length > 0 ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={stats.max_weight_history}>
+                    <defs>
+                      <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(45, 93%, 47%)" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(45, 93%, 47%)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 10 }}
+                      tickFormatter={(v: string) =>
+                        new Date(v).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                      }
+                    />
+                    <YAxis tick={{ fontSize: 10 }} width={40} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "0.75rem",
+                        fontSize: 12,
+                      }}
+                      labelFormatter={(v) =>
+                        new Date(String(v)).toLocaleDateString(undefined, {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                        })
+                      }
+                      formatter={(value) => [`${Number(value)} ${exercise.unit}`, "Max Weight"]}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="weight"
+                      stroke="hsl(45, 93%, 47%)"
+                      fillOpacity={1}
+                      fill="url(#colorWeight)"
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[200px] flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed rounded-xl bg-muted/20">
+                  <Trophy className="size-8 mb-2 opacity-20" />
+                  <p className="text-sm font-medium">No weight data</p>
+                  <p className="text-xs">Log workouts to see weight progression</p>
                 </div>
               )}
             </CardContent>

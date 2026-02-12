@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Workout Tracker",
-    short_name: "Workout",
+    name: "Strong",
+    short_name: "Strong",
     description: "Track your workouts and progress. Add to Home Screen for app-like experience.",
     start_url: "/",
     display: "standalone",

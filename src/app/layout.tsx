@@ -15,12 +15,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Workout Tracker",
+  title: "Strong",
   description: "Track your workouts, sets, and progress. Add to Home Screen for a native app experience.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Workout",
+    title: "Strong",
   },
   formatDetection: {
     telephone: false,

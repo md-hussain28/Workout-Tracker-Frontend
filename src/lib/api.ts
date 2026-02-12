@@ -126,6 +126,15 @@ export const api = {
       fetchApi<ConsistencyResponse>(`/analytics/consistency`, {
         params: { year, month },
       }),
+    volumeHistory: (from_date?: string, to_date?: string) =>
+      fetchApi<any[]>(`/analytics/volume-history-by-muscle`, { params: { from_date, to_date } }),
+    muscleDistribution: (from_date?: string, to_date?: string) =>
+      fetchApi<{ name: string; value: number }[]>(`/analytics/muscle-distribution`, {
+        params: { from_date, to_date },
+      }),
+    workoutDensity: (from_date?: string, to_date?: string) =>
+      fetchApi<any[]>(`/analytics/workout-density`, { params: { from_date, to_date } }),
+    plateauRadar: () => fetchApi<any[]>(`/analytics/plateau-radar`),
   },
 
   pr: {
@@ -214,6 +223,8 @@ export interface ExerciseStatsResponse {
   };
   set_label_distribution: { label: string; count: number }[];
   one_rm_progression: { date: string; estimated_1rm: number }[];
+  volume_history: { date: string; volume: number }[];
+  max_weight_history: { date: string; weight: number }[];
   recent_history: {
     workout_id: number;
     started_at: string | null;
