@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Dumbbell } from "lucide-react";
@@ -30,17 +31,33 @@ function modeLabel(mode: string) {
 }
 
 // ── Add Muscle Group Dialog ──
+const MUSCLE_COLORS = [
+  "#ef4444", // Red
+  "#f97316", // Orange
+  "#f59e0b", // Amber
+  "#22c55e", // Green
+  "#06b6d4", // Cyan
+  "#3b82f6", // Blue
+  "#6366f1", // Indigo
+  "#a855f7", // Purple
+  "#ec4899", // Pink
+  "#64748b", // Slate
+];
+
 function AddMuscleGroupDialog() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [color, setColor] = useState<string | null>(null);
 
   const createMutation = useMutation({
-    mutationFn: (muscleName: string) => api.muscleGroups.create({ name: muscleName }),
+    mutationFn: (data: { name: string; color?: string | null }) =>
+      api.muscleGroups.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["muscleGroups"] });
       setOpen(false);
       setName("");
+      setColor(null);
     },
   });
 
@@ -59,7 +76,7 @@ function AddMuscleGroupDialog() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (name.trim()) createMutation.mutate(name.trim());
+            if (name.trim()) createMutation.mutate({ name: name.trim(), color });
           }}
           className="space-y-4"
         >
@@ -73,6 +90,21 @@ function AddMuscleGroupDialog() {
               className="rounded-xl"
               autoFocus
             />
+          </div>
+          <div className="space-y-2">
+            <Label>Color (optional)</Label>
+            <div className="flex flex-wrap gap-2">
+              {MUSCLE_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setColor(c === color ? null : c)}
+                  className={`size-8 rounded-full transition-all ${color === c ? "ring-2 ring-offset-2 ring-foreground scale-110" : ""
+                    }`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
           </div>
           {createMutation.isError && (
             <p className="text-destructive text-sm">
@@ -95,6 +127,7 @@ function AddMuscleGroupDialog() {
 }
 
 export default function ExercisesPage() {
+  const router = useRouter();
   const [tab, setTab] = useState<TabMode>("exercises");
   const [search, setSearch] = useState("");
 
@@ -152,140 +185,168 @@ export default function ExercisesPage() {
   }, [exercises]);
 
   return (
-    <div className="mx-auto max-w-lg px-4 pt-6 pb-4">
-      <div className="mb-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Exercises</h1>
-      </div>
+    <div className="mx-auto max-w-lg flex flex-col h-[calc(100vh-72px)]">
+      <div className="shrink-0 px-4 pt-6 pb-2 bg-background z-10">
+        <div className="mb-4">
+          <h1 className="text-2xl font-semibold tracking-tight">Exercises</h1>
+        </div>
 
-      {/* Search */}
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-        <Input
-          placeholder="Search exercises or muscles..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10 rounded-xl"
-        />
-      </div>
+        {/* Search */}
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Search exercises or muscles..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10 rounded-xl"
+          />
+        </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 p-1 bg-muted rounded-xl">
-        <button
-          onClick={() => setTab("exercises")}
-          className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${tab === "exercises"
+        {/* Tabs */}
+        <div className="flex gap-1 mb-2 p-1 bg-muted rounded-xl">
+          <button
+            onClick={() => setTab("exercises")}
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${tab === "exercises"
               ? "bg-background text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
-            }`}
-        >
-          My Exercises
-        </button>
-        <button
-          onClick={() => setTab("muscles")}
-          className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${tab === "muscles"
+              }`}
+          >
+            My Exercises
+          </button>
+          <button
+            onClick={() => setTab("muscles")}
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${tab === "muscles"
               ? "bg-background text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
-            }`}
-        >
-          Muscle Groups
-        </button>
+              }`}
+          >
+            Muscle Groups
+          </button>
+        </div>
       </div>
 
-      {/* My Exercises Tab */}
-      {tab === "exercises" && (
-        <>
-          {filteredExercises.length === 0 && (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <Dumbbell className="size-10 mx-auto mb-3 opacity-40" />
-                <p className="font-medium">
-                  {exercises.length === 0 ? "No exercises yet" : "No matches"}
-                </p>
-                <p className="text-sm mt-1">
-                  {exercises.length === 0
-                    ? "Add exercises to log sets during workouts."
-                    : "Try a different search term."}
-                </p>
-              </CardContent>
-            </Card>
-          )}
-          {filteredExercises.length > 0 && (
-            <div className="space-y-5">
-              {Array.from(grouped.entries()).map(([group, exs]) => (
-                <div key={group}>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                    {group}
+      <div className="flex-1 overflow-y-auto px-4 pb-20 scrollbar-hide">
+        {/* My Exercises Tab */}
+        {tab === "exercises" && (
+          <>
+            {filteredExercises.length === 0 && (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  <Dumbbell className="size-10 mx-auto mb-3 opacity-40" />
+                  <p className="font-medium">
+                    {exercises.length === 0 ? "No exercises yet" : "No matches"}
                   </p>
-                  <ul className="space-y-2">
-                    {exs.map((ex) => (
-                      <li key={ex.id}>
-                        <Link href={`/exercises/${ex.id}`}>
-                          <Card className="transition-colors hover:bg-muted/50 active:bg-muted">
-                            <CardContent className="flex items-center justify-between py-4">
-                              <div>
-                                <p className="font-medium">{ex.name}</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge variant="secondary" className="text-xs font-normal">
-                                    {modeLabel(ex.measurement_mode)}
-                                  </Badge>
+                  <p className="text-sm mt-1">
+                    {exercises.length === 0
+                      ? "Add exercises to log sets during workouts."
+                      : "Try a different search term."}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+            {filteredExercises.length > 0 && (
+              <div className="space-y-5 pt-2">
+                {Array.from(grouped.entries()).map(([group, exs]) => (
+                  <div key={group}>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 sticky top-0 bg-background/95 backdrop-blur py-2 z-10">
+                      {group}
+                    </p>
+                    <ul className="space-y-2">
+                      {exs.map((ex) => (
+                        <li key={ex.id}>
+                          <Link href={`/exercises/${ex.id}`}>
+                            <Card className="transition-colors hover:bg-muted/50 active:bg-muted">
+                              <CardContent className="flex items-center justify-between py-4">
+                                <div>
+                                  <p className="font-medium">{ex.name}</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Badge variant="secondary" className="text-xs font-normal">
+                                      {modeLabel(ex.measurement_mode)}
+                                    </Badge>
+                                  </div>
                                 </div>
-                              </div>
-                              <span className="text-muted-foreground text-sm">View</span>
-                            </CardContent>
-                          </Card>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+                                <div className="flex items-center gap-2">
+                                  <span className="text-muted-foreground text-sm">View</span>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      router.push(`/exercises/${ex.id}/edit`);
+                                    }}
+                                  >
+                                    Edit
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Muscle Groups Tab */}
+        {tab === "muscles" && (
+          <div className="pt-2">
+            <div className="mb-4 flex justify-end">
+              <AddMuscleGroupDialog />
             </div>
-          )}
-        </>
-      )}
 
-      {/* Muscle Groups Tab */}
-      {tab === "muscles" && (
-        <>
-          <div className="mb-4 flex justify-end">
-            <AddMuscleGroupDialog />
+            {filteredMuscleGroups.length === 0 && (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  <p className="font-medium">No muscle groups</p>
+                  <p className="text-sm mt-1">
+                    Add muscle groups to categorize your exercises.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+            {filteredMuscleGroups.length > 0 && (
+              <ul className="space-y-2">
+                {filteredMuscleGroups.map((mg) => {
+                  const count = exercisesByMuscle.get(mg.id)?.length ?? 0;
+                  return (
+                    <li key={mg.id}>
+                      <Link href={`/muscle-groups/${mg.id}`}>
+                        <Card className="transition-colors hover:bg-muted/50 active:bg-muted">
+                          <CardContent className="flex items-center justify-between py-4">
+                            <div className="flex items-center gap-3">
+                              {mg.color && (
+                                <div
+                                  className="size-3 rounded-full"
+                                  style={{ backgroundColor: mg.color }}
+                                />
+                              )}
+                              <div>
+                                <p className="font-medium">{mg.name}</p>
+                                <p className="text-muted-foreground text-sm">
+                                  {count} exercise{count !== 1 ? "s" : ""}
+                                </p>
+                              </div>
+                            </div>
+                            <Badge variant="secondary" className="text-xs">
+                              {count}
+                            </Badge>
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
-
-          {filteredMuscleGroups.length === 0 && (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <p className="font-medium">No muscle groups</p>
-                <p className="text-sm mt-1">
-                  Add muscle groups to categorize your exercises.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-          {filteredMuscleGroups.length > 0 && (
-            <ul className="space-y-2">
-              {filteredMuscleGroups.map((mg) => {
-                const count = exercisesByMuscle.get(mg.id)?.length ?? 0;
-                return (
-                  <li key={mg.id}>
-                    <Card className="transition-colors hover:bg-muted/50 active:bg-muted">
-                      <CardContent className="flex items-center justify-between py-4">
-                        <div>
-                          <p className="font-medium">{mg.name}</p>
-                          <p className="text-muted-foreground text-sm">
-                            {count} exercise{count !== 1 ? "s" : ""}
-                          </p>
-                        </div>
-                        <Badge variant="secondary" className="text-xs">
-                          {count}
-                        </Badge>
-                      </CardContent>
-                    </Card>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </>
-      )}
+        )}
+      </div>
 
       {/* Floating Action Button – Add Exercise */}
       <Link

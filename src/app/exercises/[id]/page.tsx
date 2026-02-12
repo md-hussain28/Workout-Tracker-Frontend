@@ -94,9 +94,12 @@ export default function ExerciseDetailPage() {
                 {modeLabel(exercise.measurement_mode)}
               </Badge>
               {exercise.primary_muscle_group && (
-                <span className="text-muted-foreground text-sm">
+                <Link
+                  href={`/muscle-groups/${exercise.primary_muscle_group.id}`}
+                  className="text-muted-foreground text-sm hover:underline hover:text-primary transition-colors"
+                >
                   {exercise.primary_muscle_group.name}
-                </span>
+                </Link>
               )}
             </div>
           </div>
@@ -117,13 +120,25 @@ export default function ExerciseDetailPage() {
       {/* Muscle groups */}
       <div className="flex flex-wrap gap-2 text-sm text-muted-foreground mb-6">
         {exercise.primary_muscle_group && (
-          <Badge variant="outline">Primary: {exercise.primary_muscle_group.name}</Badge>
+          <Link href={`/muscle-groups/${exercise.primary_muscle_group.id}`}>
+            <Badge variant="outline" className="hover:bg-muted cursor-pointer transition-colors">
+              Primary: {exercise.primary_muscle_group.name}
+            </Badge>
+          </Link>
         )}
         {exercise.secondary_muscle_group && (
-          <Badge variant="outline">Secondary: {exercise.secondary_muscle_group.name}</Badge>
+          <Link href={`/muscle-groups/${exercise.secondary_muscle_group.id}`}>
+            <Badge variant="outline" className="hover:bg-muted cursor-pointer transition-colors">
+              Secondary: {exercise.secondary_muscle_group.name}
+            </Badge>
+          </Link>
         )}
         {exercise.tertiary_muscle_group && (
-          <Badge variant="outline">Tertiary: {exercise.tertiary_muscle_group.name}</Badge>
+          <Link href={`/muscle-groups/${exercise.tertiary_muscle_group.id}`}>
+            <Badge variant="outline" className="hover:bg-muted cursor-pointer transition-colors">
+              Tertiary: {exercise.tertiary_muscle_group.name}
+            </Badge>
+          </Link>
         )}
       </div>
 

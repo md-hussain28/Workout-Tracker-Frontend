@@ -73,8 +73,14 @@ export const api = {
 
   muscleGroups: {
     list: () => fetchApi<MuscleGroup[]>(`/muscle-groups`),
-    create: (body: { name: string }) =>
+    create: (body: { name: string; color?: string | null }) =>
       fetchApi<MuscleGroup>(`/muscle-groups`, { method: "POST", body: JSON.stringify(body) }),
+    get: (id: number) => fetchApi<MuscleGroup>(`/muscle-groups/${id}`),
+    update: (id: number, body: { name?: string; color?: string | null }) =>
+      fetchApi<MuscleGroup>(`/muscle-groups/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    delete: (id: number) =>
+      fetchApi<void>(`/muscle-groups/${id}`, { method: "DELETE" }),
+    getStats: (id: number) => fetchApi<MuscleGroupStats>(`/muscle-groups/${id}/stats`),
   },
 
   previousSession: {
@@ -143,6 +149,7 @@ export interface StreakResponse {
 export interface MuscleGroup {
   id: number;
   name: string;
+  color: string | null;
 }
 
 export interface Exercise {
@@ -158,6 +165,27 @@ export interface Exercise {
   primary_muscle_group: MuscleGroup | null;
   secondary_muscle_group: MuscleGroup | null;
   tertiary_muscle_group: MuscleGroup | null;
+}
+
+export interface MuscleGroupStats {
+  id: number;
+  name: string;
+  color: string | null;
+  total_workouts: number;
+  total_sets: number;
+  total_volume: number;
+  role_distribution: {
+    primary: number;
+    secondary: number;
+    tertiary: number;
+  };
+  volume_history: { date: string; volume: number }[];
+  top_exercises: {
+    id: number;
+    name: string;
+    volume: number;
+    set_count: number;
+  }[];
 }
 
 export interface ExerciseCreate {
