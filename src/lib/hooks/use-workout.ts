@@ -40,12 +40,18 @@ export function useAddSet(workoutId: number) {
 
             return { previous };
         },
-        onError: (_err, _newSet, context) => {
-            if (context?.previous) {
-                queryClient.setQueryData(["workout", workoutId], context.previous);
-            }
+        onSuccess: (savedSet, vars, context) => {
+            queryClient.setQueryData<WorkoutWithSets>(["workout", workoutId], (old) => {
+                if (!old) return old;
+                // Replace the temporary optimistic set with the real one from server
+                return {
+                    ...old,
+                    sets: old.sets.map((s) => (s.id === -Date.now() ? savedSet : s.id === savedSet.id ? savedSet : s)),
+                };
+            });
         },
         onSettled: () => {
+            // Invalidate to ensure consistency, but the immediate UI is handled by onSuccess
             queryClient.invalidateQueries({ queryKey: ["workout", workoutId] });
         },
     });
@@ -114,6 +120,39 @@ export function useDeleteSet(workoutId: number) {
     });
 }
 
+export function useDeleteExerciseSets(workoutId: number) {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (setIds: number[]) => {
+            await Promise.all(setIds.map((id) => api.workouts.deleteSet(workoutId, id)));
+        },
+        onMutate: async (setIds) => {
+            await queryClient.cancelQueries({ queryKey: ["workout", workoutId] });
+            const previous = queryClient.getQueryData<WorkoutWithSets>(["workout", workoutId]);
+
+            queryClient.setQueryData<WorkoutWithSets>(["workout", workoutId], (old) => {
+                if (!old) return old;
+                return {
+                    ...old,
+                    sets: old.sets.filter((s) => !setIds.includes(s.id)),
+                };
+            });
+
+            return { previous };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previous) {
+                queryClient.setQueryData(["workout", workoutId], context.previous);
+            }
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ["workout", workoutId] });
+            queryClient.invalidateQueries({ queryKey: ["streak"] });
+        },
+    });
+}
+
 export function useEndWorkout(workoutId: number) {
     const queryClient = useQueryClient();
 
@@ -144,6 +183,32 @@ export function useEndWorkout(workoutId: number) {
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ["workout", workoutId] });
+            queryClient.invalidateQueries({ queryKey: ["workouts"] });
+            queryClient.invalidateQueries({ queryKey: ["streak"] });
+        },
+    });
+}
+
+export function useDeleteWorkout() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (id: number) => api.workouts.delete(id),
+        onMutate: async (id) => {
+            // Optimistically remove from list
+            await queryClient.cancelQueries({ queryKey: ["workouts"] });
+            const previous = queryClient.getQueryData(["workouts"]);
+            queryClient.setQueryData<any[]>(["workouts"], (old) => {
+                return Array.isArray(old) ? old.filter((w) => w.id !== id) : old;
+            });
+            return { previous };
+        },
+        onError: (_err, _id, context) => {
+            if (context?.previous) {
+                queryClient.setQueryData(["workouts"], context.previous);
+            }
+        },
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ["workouts"] });
             queryClient.invalidateQueries({ queryKey: ["streak"] });
         },

@@ -21,7 +21,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { api, type Exercise, type WorkoutWithSets, type WorkoutSet, type WorkoutSetCreate } from "@/lib/api";
-import { useWorkout, useAddSet, useUpdateSet, useDeleteSet, useEndWorkout } from "@/lib/hooks/use-workout";
+import { useWorkout, useAddSet, useUpdateSet, useDeleteSet, useEndWorkout, useDeleteWorkout, useDeleteExerciseSets } from "@/lib/hooks/use-workout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -94,12 +94,14 @@ function ExerciseHistorySheet({
   workoutId,
   open,
   onOpenChange,
+  onApplyStats,
 }: {
   exerciseId: number;
   exerciseName: string;
   workoutId: number;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  onApplyStats?: (weight: number, reps: number) => void;
 }) {
   const { data: stats } = useQuery({
     queryKey: ["exerciseStats", exerciseId],
@@ -124,6 +126,7 @@ function ExerciseHistorySheet({
             <History className="size-5" />
             {exerciseName}
           </SheetTitle>
+          {onApplyStats && <p className="text-xs text-muted-foreground font-normal">Tap a set to copy stats</p>}
         </SheetHeader>
 
         {stats && (
@@ -165,31 +168,42 @@ function ExerciseHistorySheet({
             </div>
 
             {/* 1RM Progression mini */}
-            {stats.one_rm_progression.length > 1 && (
+            {stats.one_rm_progression.length > 0 ? (
               <div className="bg-muted/50 rounded-xl p-3">
                 <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
                   <TrendingUp className="size-3" /> 1RM Progression
                 </p>
                 <div className="flex items-end gap-[2px] h-10">
-                  {(() => {
-                    const points = stats.one_rm_progression;
-                    const max = Math.max(...points.map((p) => p.estimated_1rm));
-                    const min = Math.min(...points.map((p) => p.estimated_1rm));
-                    const range = max - min || 1;
-                    // Show last 20 points
-                    const recent = points.slice(-20);
-                    return recent.map((p, i) => (
-                      <div
-                        key={i}
-                        className="flex-1 bg-primary/60 rounded-t-sm min-w-[3px]"
-                        style={{ height: `${Math.max(10, ((p.estimated_1rm - min) / range) * 100)}%` }}
-                        title={`${Math.round(p.estimated_1rm)} · ${p.date ? new Date(p.date).toLocaleDateString() : ""}`}
-                      />
-                    ));
-                  })()}
+                  {stats.one_rm_progression.length > 1 ? (
+                    (() => {
+                      const points = stats.one_rm_progression;
+                      const max = Math.max(...points.map((p) => p.estimated_1rm));
+                      const min = Math.min(...points.map((p) => p.estimated_1rm));
+                      const range = max - min || 1;
+                      // Show last 20 points
+                      const recent = points.slice(-20);
+                      return recent.map((p, i) => (
+                        <div
+                          key={i}
+                          className="flex-1 bg-primary/60 rounded-t-sm min-w-[3px]"
+                          style={{ height: `${Math.max(10, ((p.estimated_1rm - min) / range) * 100)}%` }}
+                          title={`${Math.round(p.estimated_1rm)} · ${p.date ? new Date(p.date).toLocaleDateString() : ""}`}
+                        />
+                      ));
+                    })()
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground/60 italic">
+                      More data needed for graph
+                    </div>
+                  )}
                 </div>
               </div>
+            ) : (
+              <div className="bg-muted/30 rounded-xl p-3 text-center">
+                <p className="text-xs text-muted-foreground italic">No 1RM data yet</p>
+              </div>
             )}
+
 
             {/* Previous Session */}
             {prev && prev.sets.length > 0 && (
@@ -201,15 +215,19 @@ function ExerciseHistorySheet({
                   {prev.sets
                     .sort((a, b) => a.set_order - b.set_order)
                     .map((s, idx) => (
-                      <div key={s.id} className="flex items-center gap-3 text-sm bg-muted/30 rounded-lg px-3 py-1.5">
-                        <span className="text-muted-foreground w-6 text-xs">{idx + 1}</span>
+                      <button
+                        key={s.id}
+                        className="w-full flex items-center gap-3 text-sm bg-muted/30 rounded-lg px-3 py-1.5 hover:bg-muted/50 active:bg-muted transition-colors"
+                        onClick={() => s.weight != null && s.reps != null && onApplyStats?.(s.weight, s.reps)}
+                      >
+                        <span className="text-muted-foreground w-6 text-xs text-left">{idx + 1}</span>
                         <span className="font-medium tabular-nums">{s.weight ?? "—"}</span>
                         <span className="text-muted-foreground">×</span>
                         <span className="font-medium tabular-nums">{s.reps ?? (s.duration_seconds ? `${s.duration_seconds}s` : "—")}</span>
                         {s.set_label && (
                           <Badge variant="outline" className="text-[10px] ml-auto">{s.set_label}</Badge>
                         )}
-                      </div>
+                      </button>
                     ))}
                 </div>
               </div>
@@ -236,14 +254,15 @@ function ExerciseHistorySheet({
                       </p>
                       <div className="flex flex-wrap gap-1">
                         {h.sets.map((s, idx) => (
-                          <span
+                          <button
                             key={idx}
-                            className={`text-xs px-2 py-0.5 rounded-md tabular-nums ${s.is_pr ? "bg-amber-500/15 text-amber-600 font-medium" : "bg-muted/50"
+                            className={`text-xs px-2 py-0.5 rounded-md tabular-nums hover:opacity-80 active:opacity-60 transition-opacity ${s.is_pr ? "bg-amber-500/15 text-amber-600 font-medium" : "bg-muted/50"
                               }`}
+                            onClick={() => s.weight != null && s.reps != null && onApplyStats?.(s.weight, s.reps)}
                           >
                             {s.weight ?? "BW"}×
                             {s.reps ?? (s.duration_seconds ? `${s.duration_seconds}s` : "—")}
-                          </span>
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -282,6 +301,7 @@ function ExerciseSetCard({
   const addSetMutation = useAddSet(workoutId);
   const updateSetMutation = useUpdateSet(workoutId);
   const deleteSetMutation = useDeleteSet(workoutId);
+  const deleteExerciseSetsMutation = useDeleteExerciseSets(workoutId);
 
   const [adding, setAdding] = useState(false);
   const [weight, setWeight] = useState("");
@@ -347,6 +367,12 @@ function ExerciseSetCard({
     setEditingSetId(null);
   }
 
+  function handleDeleteExercise() {
+    if (!window.confirm("Remove this exercise and all its sets?")) return;
+    const setIds = sets.map(s => s.id).filter(id => id > 0);
+    deleteExerciseSetsMutation.mutate(setIds);
+  }
+
   // Compute set quality indicator
   function setQuality(s: WorkoutSet): { label: string; color: string } | null {
     if (s.is_pr) return { label: "PR!", color: "text-amber-500" };
@@ -382,6 +408,9 @@ function ExerciseSetCard({
               <Badge variant="secondary" className="text-xs font-normal">
                 {sets.length} set{sets.length !== 1 ? "s" : ""}
               </Badge>
+              <Button size="icon" variant="ghost" className="size-6 text-muted-foreground hover:text-destructive" onClick={handleDeleteExercise}>
+                <Trash2 className="size-4" />
+              </Button>
             </div>
           </div>
 
@@ -512,6 +541,12 @@ function ExerciseSetCard({
         workoutId={workoutId}
         open={historyOpen}
         onOpenChange={setHistoryOpen}
+        onApplyStats={(w, r) => {
+          setWeight(String(w));
+          setReps(String(r));
+          setAdding(true);
+          setHistoryOpen(false);
+        }}
       />
     </>
   );
@@ -672,6 +707,7 @@ function SaveAsTemplateButton({ workoutId }: { workoutId: number }) {
 
 // ── Main Page ──
 export default function WorkoutDetailPage() {
+  const router = useRouter();
   const params = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const workoutId = parseInt(params.id, 10);
@@ -680,6 +716,14 @@ export default function WorkoutDetailPage() {
 
   const { data: workout, isLoading } = useWorkout(workoutId);
   const endWorkoutMutation = useEndWorkout(workoutId);
+  const deleteWorkoutMutation = useDeleteWorkout();
+
+  function handleDeleteWorkout() {
+    if (!window.confirm("Delete this entire workout? This cannot be undone.")) return;
+    deleteWorkoutMutation.mutate(workoutId, {
+      onSuccess: () => router.push("/workouts"),
+    });
+  }
 
   if (isNaN(workoutId)) return null;
 
@@ -791,6 +835,11 @@ export default function WorkoutDetailPage() {
           )}
         </div>
         {isActive && <LiveTimer startedAt={workout.started_at} />}
+        {!isActive && (
+          <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={handleDeleteWorkout}>
+            <Trash2 className="size-5" />
+          </Button>
+        )}
       </div>
 
       {/* Action Buttons for Active Workout */}
