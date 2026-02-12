@@ -216,26 +216,38 @@ function ExerciseHistorySheet({
             )}
 
             {/* Recent History */}
-            {stats.recent_history.length > 0 && (
+            {/* Recent History */}
+            {stats.recent_history.filter((h) => h.workout_id !== workoutId).length > 0 && (
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-2">Recent History</p>
-                {stats.recent_history.slice(0, 5).map((h) => (
-                  <div key={h.workout_id} className="mb-2">
-                    <p className="text-xs text-muted-foreground mb-1">
-                      {h.started_at ? new Date(h.started_at).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) : "—"}
-                    </p>
-                    <div className="flex flex-wrap gap-1">
-                      {h.sets.map((s, idx) => (
-                        <span
-                          key={idx}
-                          className={`text-xs px-2 py-0.5 rounded-md tabular-nums ${s.is_pr ? "bg-amber-500/15 text-amber-600 font-medium" : "bg-muted/50"}`}
-                        >
-                          {s.weight ?? "BW"}×{s.reps ?? (s.duration_seconds ? `${s.duration_seconds}s` : "—")}
-                        </span>
-                      ))}
+                {stats.recent_history
+                  .filter((h) => h.workout_id !== workoutId)
+                  .slice(0, 5)
+                  .map((h) => (
+                    <div key={h.workout_id} className="mb-2">
+                      <p className="text-xs text-muted-foreground mb-1">
+                        {h.started_at
+                          ? new Date(h.started_at).toLocaleDateString(undefined, {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                          })
+                          : "—"}
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {h.sets.map((s, idx) => (
+                          <span
+                            key={idx}
+                            className={`text-xs px-2 py-0.5 rounded-md tabular-nums ${s.is_pr ? "bg-amber-500/15 text-amber-600 font-medium" : "bg-muted/50"
+                              }`}
+                          >
+                            {s.weight ?? "BW"}×
+                            {s.reps ?? (s.duration_seconds ? `${s.duration_seconds}s` : "—")}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
           </div>
