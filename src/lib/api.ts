@@ -40,7 +40,7 @@ export const api = {
     get: (id: number) => fetchApi<WorkoutWithSets>(`/workouts/${id}`),
     create: (body: { notes?: string }) =>
       fetchApi<Workout>(`/workouts`, { method: "POST", body: JSON.stringify(body) }),
-    update: (id: number, body: { ended_at?: string; duration_seconds?: number; notes?: string }) =>
+    update: (id: number, body: { started_at?: string; ended_at?: string; duration_seconds?: number; notes?: string }) =>
       fetchApi<Workout>(`/workouts/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     delete: (id: number) =>
       fetchApi<void>(`/workouts/${id}`, { method: "DELETE" }),

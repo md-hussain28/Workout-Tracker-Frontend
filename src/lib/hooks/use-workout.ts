@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type WorkoutWithSets, type WorkoutSetCreate, type WorkoutSet } from "@/lib/api";
+import { api, type WorkoutWithSets, type WorkoutSetCreate, type WorkoutSet, type WorkoutSetUpdate } from "@/lib/api";
 
 export function useWorkout(id: number) {
     return useQuery({
@@ -20,7 +20,7 @@ export function useAddSet(workoutId: number) {
             queryClient.setQueryData<WorkoutWithSets>(["workout", workoutId], (old) => {
                 if (!old) return old;
                 const optimisticSet: WorkoutSet = {
-                    id: -Date.now(), // temp id
+                    id: -Date.now(),
                     workout_id: workoutId,
                     exercise_id: newSet.exercise_id,
                     set_order: newSet.set_order ?? 0,
@@ -41,6 +41,69 @@ export function useAddSet(workoutId: number) {
             return { previous };
         },
         onError: (_err, _newSet, context) => {
+            if (context?.previous) {
+                queryClient.setQueryData(["workout", workoutId], context.previous);
+            }
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ["workout", workoutId] });
+        },
+    });
+}
+
+export function useUpdateSet(workoutId: number) {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ setId, body }: { setId: number; body: WorkoutSetUpdate }) =>
+            api.workouts.updateSet(workoutId, setId, body),
+        onMutate: async ({ setId, body }) => {
+            await queryClient.cancelQueries({ queryKey: ["workout", workoutId] });
+            const previous = queryClient.getQueryData<WorkoutWithSets>(["workout", workoutId]);
+
+            queryClient.setQueryData<WorkoutWithSets>(["workout", workoutId], (old) => {
+                if (!old) return old;
+                return {
+                    ...old,
+                    sets: old.sets.map((s) =>
+                        s.id === setId ? { ...s, ...body } : s
+                    ),
+                };
+            });
+
+            return { previous };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previous) {
+                queryClient.setQueryData(["workout", workoutId], context.previous);
+            }
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ["workout", workoutId] });
+        },
+    });
+}
+
+export function useDeleteSet(workoutId: number) {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (setId: number) => api.workouts.deleteSet(workoutId, setId),
+        onMutate: async (setId) => {
+            await queryClient.cancelQueries({ queryKey: ["workout", workoutId] });
+            const previous = queryClient.getQueryData<WorkoutWithSets>(["workout", workoutId]);
+
+            queryClient.setQueryData<WorkoutWithSets>(["workout", workoutId], (old) => {
+                if (!old) return old;
+                return {
+                    ...old,
+                    sets: old.sets.filter((s) => s.id !== setId),
+                };
+            });
+
+            return { previous };
+        },
+        onError: (_err, _setId, context) => {
             if (context?.previous) {
                 queryClient.setQueryData(["workout", workoutId], context.previous);
             }
