@@ -18,8 +18,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type TabMode = "exercises" | "muscles";
+type SortOption = "name" | "count";
 
 function modeLabel(mode: string) {
   switch (mode) {
@@ -130,6 +138,7 @@ export default function ExercisesPage() {
   const router = useRouter();
   const [tab, setTab] = useState<TabMode>("exercises");
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>("name");
 
   const { data: exercises = [] } = useQuery({
     queryKey: ["exercises"],
@@ -165,12 +174,6 @@ export default function ExercisesPage() {
     return map;
   }, [filteredExercises]);
 
-  // Filter muscle groups
-  const filteredMuscleGroups = useMemo(() => {
-    if (!q) return muscleGroups;
-    return muscleGroups.filter((mg) => mg.name.toLowerCase().includes(q));
-  }, [muscleGroups, q]);
-
   // Exercises per muscle group (for display counts)
   const exercisesByMuscle = useMemo(() => {
     const map = new Map<number, Exercise[]>();
@@ -183,6 +186,22 @@ export default function ExercisesPage() {
     }
     return map;
   }, [exercises]);
+
+  // Filter & Sort muscle groups
+  const filteredMuscleGroups = useMemo(() => {
+    let result = [...muscleGroups];
+    if (q) {
+      result = result.filter((mg) => mg.name.toLowerCase().includes(q));
+    }
+    return result.sort((a, b) => {
+      if (sortBy === "count") {
+        const countA = exercisesByMuscle.get(a.id)?.length ?? 0;
+        const countB = exercisesByMuscle.get(b.id)?.length ?? 0;
+        if (countA !== countB) return countB - countA;
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [muscleGroups, q, sortBy, exercisesByMuscle]);
 
   return (
     <div className="mx-auto max-w-lg flex flex-col h-[calc(100vh-72px)]">
@@ -296,7 +315,16 @@ export default function ExercisesPage() {
         {/* Muscle Groups Tab */}
         {tab === "muscles" && (
           <div className="pt-2">
-            <div className="mb-4 flex justify-end">
+            <div className="mb-4 flex items-center justify-end gap-2">
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                <SelectTrigger className="w-[140px] rounded-xl h-9 text-xs">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name">Alphabetical</SelectItem>
+                  <SelectItem value="count">Most Exercises</SelectItem>
+                </SelectContent>
+              </Select>
               <AddMuscleGroupDialog />
             </div>
 

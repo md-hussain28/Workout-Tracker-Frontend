@@ -171,61 +171,53 @@ export default function ExerciseDetailPage() {
           </div>
 
           {/* PRs */}
-          {stats.prs && (stats.prs.best_weight || stats.prs.best_1rm || stats.prs.best_duration) && (
-            <Card className="border-amber-500/20 bg-amber-500/5">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Trophy className="size-5 text-amber-500" />
-                  Personal Records
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-3">
-                  {stats.prs.best_weight != null && (
-                    <div>
-                      <p className="text-lg font-bold">{stats.prs.best_weight} {exercise.unit}</p>
-                      <p className="text-muted-foreground text-xs">Best Weight</p>
-                    </div>
-                  )}
-                  {stats.prs.best_1rm != null && (
-                    <div>
-                      <p className="text-lg font-bold">{stats.prs.best_1rm} {exercise.unit}</p>
-                      <p className="text-muted-foreground text-xs">Est. 1RM</p>
-                    </div>
-                  )}
-                  {stats.prs.best_volume != null && (
-                    <div>
-                      <p className="text-lg font-bold">{stats.prs.best_volume}</p>
-                      <p className="text-muted-foreground text-xs">Best Volume</p>
-                    </div>
-                  )}
-                  {stats.prs.best_reps != null && (
-                    <div>
-                      <p className="text-lg font-bold">{stats.prs.best_reps}</p>
-                      <p className="text-muted-foreground text-xs">Best Reps</p>
-                    </div>
-                  )}
-                  {stats.prs.best_duration != null && (
-                    <div>
-                      <p className="text-lg font-bold">{stats.prs.best_duration}s</p>
-                      <p className="text-muted-foreground text-xs">Best Duration</p>
-                    </div>
-                  )}
+          <Card className="border-amber-500/20 bg-amber-500/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Trophy className="size-5 text-amber-500" />
+                Personal Records
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-lg font-bold">
+                    {stats.prs.best_weight != null ? `${stats.prs.best_weight} ${exercise.unit}` : "—"}
+                  </p>
+                  <p className="text-muted-foreground text-xs">Best Weight</p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+                <div>
+                  <p className="text-lg font-bold">
+                    {stats.prs.best_1rm != null ? `${Math.round(stats.prs.best_1rm)} ${exercise.unit}` : "—"}
+                  </p>
+                  <p className="text-muted-foreground text-xs">Est. 1RM</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold">
+                    {stats.prs.best_volume != null ? stats.prs.best_volume.toLocaleString() : "—"}
+                  </p>
+                  <p className="text-muted-foreground text-xs">Best Volume</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold">
+                    {stats.prs.best_reps != null ? stats.prs.best_reps : "—"}
+                  </p>
+                  <p className="text-muted-foreground text-xs">Best Reps</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* 1RM Progression Chart */}
-          {stats.one_rm_progression.length > 1 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <TrendingUp className="size-5 text-primary" />
-                  1RM Progression
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <TrendingUp className="size-5 text-primary" />
+                1RM Progression
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {stats.one_rm_progression.length > 1 ? (
                 <ResponsiveContainer width="100%" height={200}>
                   <LineChart data={stats.one_rm_progression}>
                     <XAxis
@@ -262,60 +254,24 @@ export default function ExerciseDetailPage() {
                     />
                   </LineChart>
                 </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Set Label Distribution Pie Chart */}
-          {stats.set_label_distribution.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Set Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4">
-                  <ResponsiveContainer width={120} height={120}>
-                    <PieChart>
-                      <Pie
-                        data={stats.set_label_distribution}
-                        dataKey="count"
-                        nameKey="label"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={50}
-                        innerRadius={30}
-                      >
-                        {stats.set_label_distribution.map((_, idx) => (
-                          <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
-                        ))}
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="flex flex-col gap-1.5">
-                    {stats.set_label_distribution.map((item, idx) => (
-                      <div key={item.label} className="flex items-center gap-2 text-sm">
-                        <span
-                          className="size-2.5 rounded-full"
-                          style={{ background: PIE_COLORS[idx % PIE_COLORS.length] }}
-                        />
-                        <span className="capitalize text-muted-foreground">{item.label}</span>
-                        <span className="font-medium">{item.count}</span>
-                      </div>
-                    ))}
-                  </div>
+              ) : (
+                <div className="h-[200px] flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed rounded-xl bg-muted/20">
+                  <TrendingUp className="size-8 mb-2 opacity-20" />
+                  <p className="text-sm font-medium">Not enough data</p>
+                  <p className="text-xs">Log more workouts to see progress chart</p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </CardContent>
+          </Card>
 
           {/* Recent History */}
-          {stats.recent_history.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Recent History</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {stats.recent_history.map((h) => (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Recent History</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {stats.recent_history.length > 0 ? (
+                stats.recent_history.map((h) => (
                   <Link
                     key={h.workout_id}
                     href={`/workouts/${h.workout_id}`}
@@ -349,19 +305,14 @@ export default function ExerciseDetailPage() {
                       </div>
                     </div>
                   </Link>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Empty state */}
-          {stats.total_sets === 0 && (
-            <Card>
-              <CardContent className="py-10 text-center text-muted-foreground text-sm">
-                No data yet. Start using this exercise in workouts to see stats.
-              </CardContent>
-            </Card>
-          )}
+                ))
+              ) : (
+                <div className="py-6 text-center text-muted-foreground text-sm">
+                  No recent history.
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

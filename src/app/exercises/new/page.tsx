@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MuscleGroupPicker } from "@/components/MuscleGroupPicker";
 
 const MEASUREMENT_MODES: { value: MeasurementMode; label: string }[] = [
   { value: "weight_reps", label: "Weight × Reps" },
@@ -155,18 +156,12 @@ export default function NewExercisePage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Primary *</Label>
-              <Select value={primaryId} onValueChange={setPrimaryId}>
-                <SelectTrigger className={`rounded-xl ${!primaryId ? "text-muted-foreground" : ""}`}>
-                  <SelectValue placeholder="Select primary muscle" />
-                </SelectTrigger>
-                <SelectContent>
-                  {muscleGroups.map((mg) => (
-                    <SelectItem key={mg.id} value={String(mg.id)}>
-                      {mg.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MuscleGroupPicker
+                muscleGroups={muscleGroups}
+                value={primaryId}
+                onValueChange={setPrimaryId}
+                placeholder="Select primary muscle"
+              />
               {muscleGroups.length === 0 && (
                 <p className="text-muted-foreground text-xs">
                   No muscle groups yet.{" "}
@@ -179,39 +174,21 @@ export default function NewExercisePage() {
             </div>
             <div className="space-y-2">
               <Label>Secondary (optional)</Label>
-              <Select value={secondaryId} onValueChange={setSecondaryId}>
-                <SelectTrigger className="rounded-xl">
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {muscleGroups
-                    .filter((mg) => String(mg.id) !== primaryId && String(mg.id) !== tertiaryId)
-                    .map((mg) => (
-                      <SelectItem key={mg.id} value={String(mg.id)}>
-                        {mg.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              <MuscleGroupPicker
+                muscleGroups={muscleGroups}
+                value={secondaryId}
+                onValueChange={setSecondaryId}
+                placeholder="None"
+              />
             </div>
             <div className="space-y-2">
               <Label>Tertiary (optional)</Label>
-              <Select value={tertiaryId} onValueChange={setTertiaryId}>
-                <SelectTrigger className="rounded-xl">
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {muscleGroups
-                    .filter((mg) => String(mg.id) !== primaryId && (secondaryId === "none" || String(mg.id) !== secondaryId))
-                    .map((mg) => (
-                      <SelectItem key={mg.id} value={String(mg.id)}>
-                        {mg.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              <MuscleGroupPicker
+                muscleGroups={muscleGroups}
+                value={tertiaryId}
+                onValueChange={setTertiaryId}
+                placeholder="None"
+              />
             </div>
           </CardContent>
         </Card>

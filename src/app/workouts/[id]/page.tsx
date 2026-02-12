@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -103,10 +104,11 @@ function ExerciseHistorySheet({
   onOpenChange: (v: boolean) => void;
   onApplyStats?: (weight: number, reps: number) => void;
 }) {
-  const { data: stats } = useQuery({
+  const { data: stats, isLoading, isError, error } = useQuery({
     queryKey: ["exerciseStats", exerciseId],
     queryFn: () => api.exercises.getStats(exerciseId),
     enabled: open,
+    retry: false, // Don't retry infinitely on 500s
   });
 
   const { data: prev } = useQuery({
@@ -114,6 +116,8 @@ function ExerciseHistorySheet({
     queryFn: () => api.previousSession.get(exerciseId, workoutId),
     enabled: open,
   });
+
+  const [showError, setShowError] = useState(false);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -128,6 +132,42 @@ function ExerciseHistorySheet({
           </SheetTitle>
           {onApplyStats && <p className="text-xs text-muted-foreground font-normal">Tap a set to copy stats</p>}
         </SheetHeader>
+
+        {isLoading && (
+          <div className="mt-4 space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-12 bg-muted/50 animate-pulse rounded-xl" />
+            ))}
+          </div>
+        )}
+
+        {isError && (
+          <div className="mt-6 flex flex-col items-center justify-center text-center p-4 bg-destructive/10 rounded-xl space-y-3">
+            <div className="size-10 rounded-full bg-destructive/20 flex items-center justify-center">
+              <History className="size-5 text-destructive" />
+            </div>
+            <div>
+              <p className="font-semibold text-destructive">Failed to load history</p>
+              <p className="text-xs text-muted-foreground mb-2">Something went wrong fetching stats.</p>
+              <button
+                onClick={() => setShowError(!showError)}
+                className="text-[10px] text-muted-foreground underline"
+              >
+                {showError ? "Hide details" : "Know more"}
+              </button>
+              {showError && (
+                <div className="mt-2 text-left bg-background/50 p-2 rounded-md border text-[10px] font-mono text-muted-foreground break-all">
+                  {error instanceof Error ? error.message : "Unknown error"}
+                </div>
+              )}
+            </div>
+            <Link href={`/exercises/${exerciseId}`}>
+              <Button variant="outline" size="sm" className="w-full">
+                See Full Details
+              </Button>
+            </Link>
+          </div>
+        )}
 
         {stats && (
           <div className="mt-4 space-y-4">
@@ -234,7 +274,6 @@ function ExerciseHistorySheet({
             )}
 
             {/* Recent History */}
-            {/* Recent History */}
             {stats.recent_history.filter((h) => h.workout_id !== workoutId).length > 0 && (
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-2">Recent History</p>
@@ -269,14 +308,12 @@ function ExerciseHistorySheet({
                   ))}
               </div>
             )}
-          </div>
-        )}
 
-        {!stats && (
-          <div className="mt-4 space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-12 bg-muted/50 animate-pulse rounded-xl" />
-            ))}
+            <Link href={`/exercises/${exerciseId}`} className="block mt-4">
+              <Button variant="outline" className="w-full">
+                See Full Stats
+              </Button>
+            </Link>
           </div>
         )}
       </SheetContent>
