@@ -24,9 +24,6 @@ import {
   Bar,
   AreaChart,
   Area,
-  Bar,
-  AreaChart,
-  Area,
 } from "recharts";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
