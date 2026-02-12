@@ -29,9 +29,14 @@ async function fetchApi<T>(
 
 export const api = {
   health: () => fetchApi<{ status: string }>("/health"),
+
+  streak: {
+    get: () => fetchApi<StreakResponse>(`/streak`),
+  },
+
   workouts: {
-    list: (skip = 0, limit = 50) =>
-      fetchApi<Workout[]>(`/workouts`, { params: { skip, limit } }),
+    list: (skip = 0, limit = 50, from_date?: string, to_date?: string) =>
+      fetchApi<Workout[]>(`/workouts`, { params: { skip, limit, from_date, to_date } }),
     get: (id: number) => fetchApi<WorkoutWithSets>(`/workouts/${id}`),
     create: (body: { notes?: string }) =>
       fetchApi<Workout>(`/workouts`, { method: "POST", body: JSON.stringify(body) }),
@@ -44,11 +49,20 @@ export const api = {
         method: "POST",
         body: JSON.stringify(body),
       }),
+    updateSet: (workoutId: number, setId: number, body: WorkoutSetUpdate) =>
+      fetchApi<WorkoutSet>(`/workouts/${workoutId}/sets/${setId}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    deleteSet: (workoutId: number, setId: number) =>
+      fetchApi<void>(`/workouts/${workoutId}/sets/${setId}`, { method: "DELETE" }),
   },
+
   exercises: {
     list: (skip = 0, limit = 200) =>
       fetchApi<Exercise[]>(`/exercises`, { params: { skip, limit } }),
     get: (id: number) => fetchApi<Exercise>(`/exercises/${id}`),
+    getStats: (id: number) => fetchApi<ExerciseStatsResponse>(`/exercises/${id}/stats`),
     create: (body: ExerciseCreate) =>
       fetchApi<Exercise>(`/exercises`, { method: "POST", body: JSON.stringify(body) }),
     update: (id: number, body: Partial<ExerciseCreate>) =>
@@ -56,15 +70,20 @@ export const api = {
     delete: (id: number) =>
       fetchApi<void>(`/exercises/${id}`, { method: "DELETE" }),
   },
+
   muscleGroups: {
     list: () => fetchApi<MuscleGroup[]>(`/muscle-groups`),
+    create: (body: { name: string }) =>
+      fetchApi<MuscleGroup>(`/muscle-groups`, { method: "POST", body: JSON.stringify(body) }),
   },
+
   previousSession: {
     get: (exerciseId: number, excludeWorkoutId?: number) =>
       fetchApi<PreviousSession>(`/previous-session/exercises/${exerciseId}/previous-session`, {
         params: excludeWorkoutId != null ? { exclude_workout_id: excludeWorkoutId } : undefined,
       }),
   },
+
   templates: {
     list: () => fetchApi<WorkoutTemplate[]>(`/templates`),
     get: (id: number) => fetchApi<WorkoutTemplate>(`/templates/${id}`),
@@ -85,6 +104,7 @@ export const api = {
         { method: "POST" }
       ),
   },
+
   analytics: {
     muscleVolume: (from_date?: string, to_date?: string) =>
       fetchApi<MuscleVolumeResponse>(`/analytics/muscle-volume`, {
@@ -101,16 +121,24 @@ export const api = {
         params: { year, month },
       }),
   },
+
   pr: {
     trophyRoom: (period: "month" | "year" = "month") =>
       fetchApi<PrTrophyRoom>(`/pr/trophy-room`, { params: { period } }),
   },
 };
 
-// Types (match backend schemas)
+// ── Types ──
+
 export type MeasurementMode = "weight_reps" | "time" | "bodyweight_reps";
 export type SetLabel = "warmup" | "working" | "failure" | "drop_set";
 export type PRType = "weight" | "volume" | "duration";
+
+export interface StreakResponse {
+  current_streak: number;
+  longest_streak: number;
+  last_workout_date: string | null;
+}
 
 export interface MuscleGroup {
   id: number;
@@ -143,6 +171,35 @@ export interface ExerciseCreate {
   tertiary_muscle_group_id?: number | null;
 }
 
+export interface ExerciseStatsResponse {
+  exercise_id: number;
+  total_sets: number;
+  total_workouts: number;
+  first_performed: string | null;
+  last_performed: string | null;
+  prs: {
+    best_weight: number | null;
+    best_reps: number | null;
+    best_volume: number | null;
+    best_1rm: number | null;
+    best_duration: number | null;
+  };
+  set_label_distribution: { label: string; count: number }[];
+  one_rm_progression: { date: string; estimated_1rm: number }[];
+  recent_history: {
+    workout_id: number;
+    started_at: string | null;
+    sets: {
+      set_order: number;
+      weight: number | null;
+      reps: number | null;
+      duration_seconds: number | null;
+      set_label: string | null;
+      is_pr: boolean;
+    }[];
+  }[];
+}
+
 export interface WorkoutSet {
   id: number;
   workout_id: number;
@@ -161,6 +218,14 @@ export interface WorkoutSet {
 export interface WorkoutSetCreate {
   exercise_id: number;
   set_order?: number;
+  weight?: number | null;
+  reps?: number | null;
+  duration_seconds?: number | null;
+  notes?: string | null;
+  set_label?: SetLabel | null;
+}
+
+export interface WorkoutSetUpdate {
   weight?: number | null;
   reps?: number | null;
   duration_seconds?: number | null;

@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Dumbbell, History, LayoutTemplate, Trophy } from "lucide-react";
+import { Home, History, Dumbbell, BarChart3, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/", label: "Home", icon: Activity },
+  { href: "/", label: "Home", icon: Home },
   { href: "/workouts", label: "Workouts", icon: History },
   { href: "/exercises", label: "Exercises", icon: Dumbbell },
-  { href: "/templates", label: "Templates", icon: LayoutTemplate },
-  { href: "/stats", label: "Stats", icon: Trophy },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function BottomNav() {

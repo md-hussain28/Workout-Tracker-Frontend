@@ -1,8 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
-import { api, type MuscleGroup, type MeasurementMode } from "@/lib/api";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { api, type MeasurementMode } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,7 +26,13 @@ const MEASUREMENT_MODES: { value: MeasurementMode; label: string }[] = [
 
 export default function NewExercisePage() {
   const router = useRouter();
-  const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>([]);
+  const queryClient = useQueryClient();
+
+  const { data: muscleGroups = [] } = useQuery({
+    queryKey: ["muscleGroups"],
+    queryFn: () => api.muscleGroups.list(),
+  });
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [unit, setUnit] = useState("kg");
@@ -34,13 +43,13 @@ export default function NewExercisePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    api.muscleGroups.list().then(setMuscleGroups);
-  }, []);
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
+    if (!primaryId) {
+      setError("Primary muscle group is required.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -49,12 +58,12 @@ export default function NewExercisePage() {
         description: description.trim() || null,
         unit,
         measurement_mode: measurementMode,
-        primary_muscle_group_id: primaryId ? parseInt(primaryId, 10) : null,
-        secondary_muscle_group_id: secondaryId ? parseInt(secondaryId, 10) : null,
-        tertiary_muscle_group_id: tertiaryId ? parseInt(tertiaryId, 10) : null,
+        primary_muscle_group_id: parseInt(primaryId, 10),
+        secondary_muscle_group_id: secondaryId && secondaryId !== "none" ? parseInt(secondaryId, 10) : null,
+        tertiary_muscle_group_id: tertiaryId && tertiaryId !== "none" ? parseInt(tertiaryId, 10) : null,
       });
+      queryClient.invalidateQueries({ queryKey: ["exercises"] });
       router.push("/exercises");
-      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create exercise");
     } finally {
@@ -62,8 +71,17 @@ export default function NewExercisePage() {
     }
   }
 
+  const canSubmit = name.trim() && primaryId && !loading;
+
   return (
     <div className="mx-auto max-w-lg px-4 pt-6 pb-4">
+      <Link
+        href="/exercises"
+        className="inline-flex items-center gap-1 text-muted-foreground text-sm mb-3 hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="size-4" />
+        Exercises
+      </Link>
       <h1 className="text-2xl font-semibold tracking-tight mb-2">New exercise</h1>
       <p className="text-muted-foreground text-sm mb-6">Add an exercise to use in workouts.</p>
 
@@ -127,64 +145,76 @@ export default function NewExercisePage() {
           </CardContent>
         </Card>
 
-        {muscleGroups.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Muscle groups (optional)</CardTitle>
-              <CardDescription>Primary, secondary, tertiary.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Primary</Label>
-                <Select value={primaryId} onValueChange={setPrimaryId}>
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="None" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">None</SelectItem>
-                    {muscleGroups.map((mg) => (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Muscle groups</CardTitle>
+            <CardDescription>
+              Primary is required. Secondary and tertiary are optional.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Primary *</Label>
+              <Select value={primaryId} onValueChange={setPrimaryId}>
+                <SelectTrigger className={`rounded-xl ${!primaryId ? "text-muted-foreground" : ""}`}>
+                  <SelectValue placeholder="Select primary muscle" />
+                </SelectTrigger>
+                <SelectContent>
+                  {muscleGroups.map((mg) => (
+                    <SelectItem key={mg.id} value={String(mg.id)}>
+                      {mg.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {muscleGroups.length === 0 && (
+                <p className="text-muted-foreground text-xs">
+                  No muscle groups yet.{" "}
+                  <Link href="/exercises" className="text-primary underline">
+                    Add one first
+                  </Link>{" "}
+                  in the Muscle Groups tab.
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Secondary (optional)</Label>
+              <Select value={secondaryId} onValueChange={setSecondaryId}>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {muscleGroups
+                    .filter((mg) => String(mg.id) !== primaryId && String(mg.id) !== tertiaryId)
+                    .map((mg) => (
                       <SelectItem key={mg.id} value={String(mg.id)}>
                         {mg.name}
                       </SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Secondary</Label>
-                <Select value={secondaryId} onValueChange={setSecondaryId}>
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="None" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">None</SelectItem>
-                    {muscleGroups.map((mg) => (
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Tertiary (optional)</Label>
+              <Select value={tertiaryId} onValueChange={setTertiaryId}>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {muscleGroups
+                    .filter((mg) => String(mg.id) !== primaryId && (secondaryId === "none" || String(mg.id) !== secondaryId))
+                    .map((mg) => (
                       <SelectItem key={mg.id} value={String(mg.id)}>
                         {mg.name}
                       </SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Tertiary</Label>
-                <Select value={tertiaryId} onValueChange={setTertiaryId}>
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="None" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">None</SelectItem>
-                    {muscleGroups.map((mg) => (
-                      <SelectItem key={mg.id} value={String(mg.id)}>
-                        {mg.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
 
         {error && <p className="text-destructive text-sm">{error}</p>}
 
@@ -192,7 +222,7 @@ export default function NewExercisePage() {
           type="submit"
           className="w-full rounded-xl py-6"
           size="lg"
-          disabled={!name.trim() || loading}
+          disabled={!canSubmit}
         >
           {loading ? "Creating…" : "Create exercise"}
         </Button>
