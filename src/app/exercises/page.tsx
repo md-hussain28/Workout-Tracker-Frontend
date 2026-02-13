@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type TabMode = "exercises" | "muscles";
 type SortOption = "name" | "count";
@@ -140,15 +141,17 @@ export default function ExercisesPage() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("name");
 
-  const { data: exercises = [] } = useQuery({
+  const { data: exercises = [], isLoading: isLoadingExercises } = useQuery({
     queryKey: ["exercises"],
     queryFn: () => api.exercises.list(),
   });
 
-  const { data: muscleGroups = [] } = useQuery({
+  const { data: muscleGroups = [], isLoading: isLoadingMuscleGroups } = useQuery({
     queryKey: ["muscleGroups"],
     queryFn: () => api.muscleGroups.list(),
   });
+
+  const isLoading = isLoadingExercises || isLoadingMuscleGroups;
 
   const q = search.toLowerCase().trim();
 
@@ -248,7 +251,19 @@ export default function ExercisesPage() {
         {/* My Exercises Tab */}
         {tab === "exercises" && (
           <>
-            {filteredExercises.length === 0 && (
+            {isLoading && (
+              <div className="space-y-2 pt-2">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center space-x-4 p-4 border rounded-xl">
+                    <div className="space-y-2 w-full">
+                      <Skeleton className="h-4 w-[200px]" />
+                      <Skeleton className="h-4 w-[140px]" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!isLoading && filteredExercises.length === 0 && (
               <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
                   <Dumbbell className="size-10 mx-auto mb-3 opacity-40" />
@@ -263,7 +278,7 @@ export default function ExercisesPage() {
                 </CardContent>
               </Card>
             )}
-            {filteredExercises.length > 0 && (
+            {!isLoading && filteredExercises.length > 0 && (
               <div className="space-y-5 pt-2">
                 {Array.from(grouped.entries()).map(([group, exs]) => (
                   <div key={group}>
@@ -328,7 +343,24 @@ export default function ExercisesPage() {
               <AddMuscleGroupDialog />
             </div>
 
-            {filteredMuscleGroups.length === 0 && (
+            {isLoading && (
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center justify-between p-4 border rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="size-3 rounded-full" />
+                      <div className="space-y-1">
+                        <Skeleton className="h-4 w-[100px]" />
+                        <Skeleton className="h-3 w-[60px]" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-5 w-8 rounded-full" />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!isLoading && filteredMuscleGroups.length === 0 && (
               <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
                   <p className="font-medium">No muscle groups</p>
@@ -338,7 +370,7 @@ export default function ExercisesPage() {
                 </CardContent>
               </Card>
             )}
-            {filteredMuscleGroups.length > 0 && (
+            {!isLoading && filteredMuscleGroups.length > 0 && (
               <ul className="space-y-2">
                 {filteredMuscleGroups.map((mg) => {
                   const count = exercisesByMuscle.get(mg.id)?.length ?? 0;

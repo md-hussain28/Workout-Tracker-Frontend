@@ -10,6 +10,7 @@ import {
     Settings as SettingsIcon,
     ChevronRight,
     Play,
+    RotateCw,
 } from "lucide-react";
 import { api, type WorkoutTemplate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
     Dialog,
     DialogContent,
@@ -172,18 +174,32 @@ function TemplateCard({ template }: { template: WorkoutTemplate }) {
 
 // ── Settings Page ──
 export default function SettingsPage() {
-    const { data: templates = [], isLoading } = useQuery({
+    const { data: templates = [], isLoading, refetch, isRefetching } = useQuery({
         queryKey: ["templates"],
         queryFn: () => api.templates.list(),
     });
 
     return (
         <div className="mx-auto max-w-lg px-4 pt-6 pb-4">
-            <div className="mb-6 flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-2xl bg-primary/10">
-                    <SettingsIcon className="size-5 text-primary" />
+            <div className="mb-6 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="flex size-10 items-center justify-center rounded-2xl bg-primary/10">
+                        <SettingsIcon className="size-5 text-primary" />
+                    </div>
+                    <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
                 </div>
-                <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => refetch()}
+                    disabled={isLoading || isRefetching}
+                    className="rounded-full"
+                >
+                    <RotateCw
+                        className={`size-5 text-muted-foreground ${isLoading || isRefetching ? "animate-spin" : ""
+                            }`}
+                    />
+                </Button>
             </div>
 
             {/* Templates Section */}
@@ -199,7 +215,12 @@ export default function SettingsPage() {
                 {isLoading && (
                     <div className="space-y-2">
                         {[1, 2].map((i) => (
-                            <div key={i} className="h-20 rounded-xl bg-muted/50 animate-pulse" />
+                            <div key={i} className="flex flex-col space-y-3 p-4 border rounded-xl">
+                                <div className="space-y-2">
+                                    <Skeleton className="h-4 w-[150px]" />
+                                    <Skeleton className="h-3 w-[100px]" />
+                                </div>
+                            </div>
                         ))}
                     </div>
                 )}

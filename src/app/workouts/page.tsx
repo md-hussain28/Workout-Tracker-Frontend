@@ -7,6 +7,7 @@ import { Plus, Calendar, Clock, Dumbbell } from "lucide-react";
 import { api, type Workout } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type ViewMode = "day" | "week" | "month";
 
@@ -86,7 +87,16 @@ export default function WorkoutsListPage() {
         {isLoading && (
           <div className="space-y-2">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 rounded-xl bg-muted/50 animate-pulse" />
+              <div key={i} className="flex items-center justify-between p-4 border rounded-xl">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="size-10 rounded-xl" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-[120px]" />
+                    <Skeleton className="h-3 w-[80px]" />
+                  </div>
+                </div>
+                <Skeleton className="h-4 w-[40px]" />
+              </div>
             ))}
           </div>
         )}
