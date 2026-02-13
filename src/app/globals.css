@@ -141,3 +141,44 @@ button:not([data-slot]),
   min-height: 44px;
   min-width: 44px;
 }
+
+/* ── Glassmorphism ── */
+.glass {
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  background: oklch(0.19 0.02 260 / 0.55);
+  border: 1px solid oklch(1 0 0 / 0.06);
+}
+.glass-light {
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  background: oklch(0.19 0.02 260 / 0.35);
+  border: 1px solid oklch(1 0 0 / 0.04);
+}
+
+/* ── Pulse glow for active workout ── */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 12px 2px oklch(0.7 0.15 262 / 0.3); }
+  50% { box-shadow: 0 0 24px 6px oklch(0.7 0.15 262 / 0.5); }
+}
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* ── Snap carousel ── */
+.snap-x {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.snap-start {
+  scroll-snap-align: start;
+}
+
+/* Hide scrollbar for snap carousels */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

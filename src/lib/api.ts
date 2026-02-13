@@ -135,6 +135,8 @@ export const api = {
     workoutDensity: (from_date?: string, to_date?: string) =>
       fetchApi<any[]>(`/analytics/workout-density`, { params: { from_date, to_date } }),
     plateauRadar: () => fetchApi<any[]>(`/analytics/plateau-radar`),
+    recovery: () =>
+      fetchApi<RecoveryResponse>(`/analytics/recovery`),
   },
 
   pr: {
@@ -346,4 +348,15 @@ export interface PrTrophyRoom {
     reps: number | null;
     duration_seconds: number | null;
   }[];
+}
+
+export interface RecoveryMuscle {
+  key: string;
+  name: string;
+  fatigue_score: number;
+  overstrained: boolean;
+}
+
+export interface RecoveryResponse {
+  muscles: RecoveryMuscle[];
 }

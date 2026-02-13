@@ -70,7 +70,7 @@ export function MuscleGroupPicker({
             <Sheet open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(""); }}>
                 <SheetContent
                     side="bottom"
-                    className="rounded-t-3xl border-t pt-6 pb-[max(env(safe-area-inset-bottom),24px)] max-h-[85dvh] flex flex-col"
+                    className="rounded-t-3xl border-t pt-6 pb-[max(env(safe-area-inset-bottom),24px)] max-h-[85dvh] flex flex-col overflow-hidden"
                 >
                     <SheetHeader>
                         <SheetTitle className="text-base">Select Muscle Group</SheetTitle>
@@ -87,7 +87,7 @@ export function MuscleGroupPicker({
                             />
                         </div>
                     </div>
-                    <div className="flex-1 overflow-y-auto px-4 pb-4">
+                    <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
                         {value && value !== "none" && (
                             <button
                                 onClick={() => {

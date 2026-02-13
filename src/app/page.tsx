@@ -1,12 +1,11 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Flame, Plus, Zap, Timer } from "lucide-react";
-import { api } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { api, type Workout } from "@/lib/api";
+import { WeeklyRings } from "@/components/home/WeeklyRings";
+import { QuickStartCarousel } from "@/components/home/QuickStartCarousel";
+import { BentoGrid } from "@/components/home/BentoGrid";
 
 export default function HomePage() {
   const { data: streak, isLoading: isStreakLoading } = useQuery({
@@ -20,123 +19,61 @@ export default function HomePage() {
   });
 
   // Find active workout (no ended_at)
-  const activeWorkout = recentWorkouts?.find((w) => !w.ended_at);
+  const activeWorkout = useMemo(
+    () => recentWorkouts?.find((w: Workout) => !w.ended_at),
+    [recentWorkouts]
+  );
 
   return (
-    <div className="mx-auto max-w-lg px-4 pt-6 pb-4">
+    <div className="mx-auto max-w-lg px-4 pt-5 pb-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Workout Tracker</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">
-          Train hard, track everything.
-        </p>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h1 className="text-lg font-bold tracking-tight font-[family-name:var(--font-geist-mono)]">
+            Strong
+          </h1>
+        </div>
+        {activeWorkout && (
+          <div className="flex items-center gap-2">
+            <span className="relative flex size-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+              <span className="relative inline-flex size-2 rounded-full bg-green-500" />
+            </span>
+            <LiveTimer startedAt={activeWorkout.started_at} />
+          </div>
+        )}
       </div>
 
-      <div className="flex flex-col gap-4">
-        {/* Streak Card */}
-        <Card className="overflow-hidden border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-transparent">
-          <CardContent className="py-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex size-12 items-center justify-center rounded-2xl bg-orange-500/15">
-                  <Flame className="size-6 text-orange-500" />
-                </div>
-                <div>
-                  {isStreakLoading ? (
-                    <>
-                      <div className="h-9 w-10 rounded-md bg-orange-500/15 animate-pulse" />
-                      <div className="h-4 w-16 mt-1 rounded bg-muted animate-pulse" />
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-3xl font-bold tabular-nums">
-                        {streak?.current_streak ?? 0}
-                      </p>
-                      <p className="text-muted-foreground text-sm font-medium">
-                        day streak
-                      </p>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="text-right">
-                {isStreakLoading ? (
-                  <>
-                    <div className="h-3 w-12 mb-1 rounded bg-muted animate-pulse ml-auto" />
-                    <div className="h-6 w-8 rounded bg-muted animate-pulse ml-auto" />
-                  </>
-                ) : (
-                  <>
-                    <p className="text-muted-foreground text-xs">Longest</p>
-                    <p className="text-lg font-semibold tabular-nums">
-                      {streak?.longest_streak ?? 0}
-                    </p>
-                  </>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="flex flex-col gap-6">
+        {/* 1 — Weekly Activity Rings */}
+        <section>
+          <WeeklyRings />
+        </section>
 
-        {/* Active Workout Banner */}
-        {activeWorkout && (
-          <Link href={`/workouts/${activeWorkout.id}`}>
-            <Card className="overflow-hidden border-green-500/30 bg-green-500/10 transition-colors hover:bg-green-500/15 active:bg-green-500/20">
-              <CardContent className="flex items-center justify-between py-4">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <Timer className="size-5 text-green-500" />
-                    <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-green-500 animate-pulse" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-green-600 dark:text-green-400">
-                      Workout in progress
-                    </p>
-                    <p className="text-muted-foreground text-sm">
-                      Started {new Date(activeWorkout.started_at).toLocaleTimeString(undefined, {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                </div>
-                <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                  Continue →
-                </span>
-              </CardContent>
-            </Card>
-          </Link>
-        )}
+        {/* 2 — Bento Grid */}
+        <section>
+          <BentoGrid streak={streak} />
+        </section>
 
-        {/* Quick Start CTA */}
-        <Card className="overflow-hidden border-primary/20 bg-primary/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Zap className="size-5 text-primary" />
-              Quick start
-            </CardTitle>
-            <CardDescription>Start a new workout and log sets as you go.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild className="w-full rounded-xl py-6 text-base font-medium" size="lg">
-              <Link href="/workouts/new">
-                <Plus className="mr-2 size-5" />
-                Start workout
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Empty state hint */}
-        {!activeWorkout && (!recentWorkouts || recentWorkouts.length === 0) && (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground text-sm">
-              <p className="font-medium mb-1">Welcome! 💪</p>
-              <p>Start your first workout to begin tracking your progress.</p>
-            </CardContent>
-          </Card>
-        )}
+        {/* 3 — Quick Start / Templates */}
+        <section>
+          <QuickStartCarousel activeWorkout={activeWorkout} />
+        </section>
       </div>
     </div>
+  );
+}
+
+// ── Live Timer Component ──
+function LiveTimer({ startedAt }: { startedAt: string }) {
+  const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+  const h = Math.floor(elapsed / 3600);
+  const m = Math.floor((elapsed % 3600) / 60);
+  const s = elapsed % 60;
+
+  return (
+    <span className="text-xs font-mono text-green-400 tabular-nums font-semibold">
+      {String(h).padStart(2, "0")}:{String(m).padStart(2, "0")}:{String(s).padStart(2, "0")}
+    </span>
   );
 }
