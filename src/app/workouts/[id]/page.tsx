@@ -2,7 +2,7 @@
 
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -313,9 +313,12 @@ function ExerciseSetCard({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [prToast, setPrToast] = useState<string | null>(null);
 
-  // Auto-populate from previous set
+  const hasAutoPopulated = useRef(false);
+
+  // Auto-populate from previous set (only on first mount)
   useEffect(() => {
-    if (sets.length > 0) {
+    if (sets.length > 0 && !hasAutoPopulated.current) {
+      hasAutoPopulated.current = true;
       const last = sets[sets.length - 1];
       if (last.weight != null) setWeight(String(last.weight));
       if (last.reps != null) setReps(String(last.reps));
@@ -338,6 +341,9 @@ function ExerciseSetCard({
         if (newSet.is_pr && newSet.pr_type) {
           setPrToast(newSet.pr_type);
         }
+        // Keep the inputs populated with what the user just logged
+        if (newSet.weight != null) setWeight(String(newSet.weight));
+        if (newSet.reps != null) setReps(String(newSet.reps));
       },
     });
     setAdding(false);
@@ -553,7 +559,7 @@ function ExerciseSetCard({
   );
 }
 
-// ── Exercise Picker Modal ──
+// ── Exercise Picker (Bottom Sheet) ──
 function ExercisePickerModal({
   workoutId,
   existingExerciseIds,
@@ -583,8 +589,19 @@ function ExercisePickerModal({
     );
   }, [exercises, search]);
 
+  // Group filtered exercises by muscle group
+  const grouped = useMemo(() => {
+    const map = new Map<string, typeof exercises>();
+    for (const ex of filtered) {
+      const key = ex.primary_muscle_group?.name ?? "Uncategorized";
+      const arr = map.get(key) ?? [];
+      arr.push(ex);
+      map.set(key, arr);
+    }
+    return map;
+  }, [filtered]);
+
   function handleSelect(ex: Exercise) {
-    // Add first set with weight=0, reps=0 so it's immediately visible and editable
     addSetMutation.mutate({
       exercise_id: ex.id,
       set_order: 0,
@@ -596,56 +613,62 @@ function ExercisePickerModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-2xl sm:max-w-md max-h-[80dvh] flex flex-col p-0 gap-0">
-        <DialogHeader className="px-6 pt-6 pb-3">
-          <DialogTitle>Add Exercise</DialogTitle>
-        </DialogHeader>
-        <div className="px-6 pb-3">
+    <Sheet open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setSearch(""); }}>
+      <SheetContent
+        side="bottom"
+        className="rounded-t-3xl border-t pt-6 pb-[max(env(safe-area-inset-bottom),24px)] max-h-[85dvh] flex flex-col"
+      >
+        <SheetHeader>
+          <SheetTitle>Add Exercise</SheetTitle>
+        </SheetHeader>
+        <div className="px-4 pt-2 pb-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
               placeholder="Search exercises..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 rounded-xl"
+              className="pl-10 rounded-xl bg-muted/50 border-muted"
               autoFocus
             />
           </div>
         </div>
-        <ul className="overflow-y-auto flex-1 px-4 pb-4 space-y-0.5">
-          {filtered.map((ex) => {
-            const alreadyAdded = existingExerciseIds.has(ex.id);
-            return (
-              <li key={ex.id}>
-                <button
-                  onClick={() => handleSelect(ex)}
-                  className="w-full flex items-center justify-between py-3 px-3 rounded-xl hover:bg-muted/50 active:bg-muted transition-colors text-left"
-                >
-                  <div>
-                    <p className="font-medium text-sm">{ex.name}</p>
-                    <div className="flex items-center gap-2">
-                      {ex.primary_muscle_group && (
-                        <p className="text-muted-foreground text-xs">{ex.primary_muscle_group.name}</p>
-                      )}
-                      {alreadyAdded && (
-                        <Badge variant="outline" className="text-[10px] py-0">already in workout</Badge>
-                      )}
-                    </div>
-                  </div>
-                  <Plus className="size-5 text-muted-foreground" />
-                </button>
-              </li>
-            );
-          })}
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
           {filtered.length === 0 && (
-            <li className="text-center py-8 text-muted-foreground text-sm">
+            <p className="text-center py-8 text-muted-foreground text-sm">
               No exercises found.
-            </li>
+            </p>
           )}
-        </ul>
-      </DialogContent>
-    </Dialog>
+          {Array.from(grouped.entries()).map(([group, exs]) => (
+            <div key={group} className="mb-3">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-1 py-1.5 sticky top-0 bg-background/95 backdrop-blur z-10">
+                {group}
+              </p>
+              <div className="space-y-0.5">
+                {exs.map((ex) => {
+                  const alreadyAdded = existingExerciseIds.has(ex.id);
+                  return (
+                    <button
+                      key={ex.id}
+                      onClick={() => handleSelect(ex)}
+                      className="w-full flex items-center justify-between py-3 px-3 rounded-xl hover:bg-muted/50 active:bg-muted transition-colors text-left"
+                    >
+                      <div>
+                        <p className="font-medium text-sm">{ex.name}</p>
+                        {alreadyAdded && (
+                          <Badge variant="outline" className="text-[10px] py-0 mt-0.5">already in workout</Badge>
+                        )}
+                      </div>
+                      <Plus className="size-5 text-muted-foreground" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 

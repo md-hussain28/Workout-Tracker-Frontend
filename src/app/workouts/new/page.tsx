@@ -1,11 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Play, LayoutTemplate, Zap, ArrowLeft } from "lucide-react";
+import { Play, LayoutTemplate, Zap, ArrowLeft, AlertTriangle } from "lucide-react";
 import Link from "next/link";
-import { api, type WorkoutTemplate } from "@/lib/api";
+import { api, type Workout } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,17 @@ export default function NewWorkoutPage() {
     queryKey: ["templates"],
     queryFn: () => api.templates.list(),
   });
+
+  // Check for any in-progress workout
+  const { data: recentWorkouts = [] } = useQuery({
+    queryKey: ["workouts", "recent-check"],
+    queryFn: () => api.workouts.list(0, 20),
+  });
+
+  const activeWorkout = useMemo(
+    () => recentWorkouts.find((w: Workout) => !w.ended_at),
+    [recentWorkouts]
+  );
 
   async function handleStartBlank() {
     setLoading(true);
@@ -63,10 +74,41 @@ export default function NewWorkoutPage() {
         Start from a template or begin a blank session.
       </p>
 
+      {/* Active Session Warning */}
+      {activeWorkout && (
+        <Card className="mb-4 border-amber-500/50 bg-amber-500/5">
+          <CardContent className="py-4">
+            <div className="flex items-start gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/10">
+                <AlertTriangle className="size-5 text-amber-500" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-sm">Workout in progress</p>
+                <p className="text-muted-foreground text-xs mt-0.5">
+                  You already have an active session started{" "}
+                  {new Date(activeWorkout.started_at).toLocaleString(undefined, {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                  . End it before starting a new one.
+                </p>
+                <Link href={`/workouts/${activeWorkout.id}`}>
+                  <Button size="sm" className="mt-2 rounded-xl">
+                    Resume workout
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="space-y-4">
         {/* Start from Template */}
         {templates.length > 0 && (
-          <Card>
+          <Card className={activeWorkout ? "opacity-50 pointer-events-none" : ""}>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
                 <LayoutTemplate className="size-5 text-muted-foreground" />
@@ -81,7 +123,7 @@ export default function NewWorkoutPage() {
                 <button
                   key={t.id}
                   onClick={() => handleStartFromTemplate(t.id)}
-                  disabled={loading}
+                  disabled={loading || !!activeWorkout}
                   className="w-full flex items-center justify-between py-3 px-3 rounded-xl border border-border hover:bg-muted/50 active:bg-muted transition-colors text-left disabled:opacity-50"
                 >
                   <div>
@@ -116,7 +158,7 @@ export default function NewWorkoutPage() {
         )}
 
         {/* Blank Workout */}
-        <Card>
+        <Card className={activeWorkout ? "opacity-50 pointer-events-none" : ""}>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <Zap className="size-5 text-primary" />
@@ -137,13 +179,14 @@ export default function NewWorkoutPage() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="rounded-xl"
+                disabled={!!activeWorkout}
               />
             </div>
             <Button
               className="w-full rounded-xl py-5 text-base font-medium"
               size="lg"
               onClick={handleStartBlank}
-              disabled={loading}
+              disabled={loading || !!activeWorkout}
             >
               {loading ? "Starting…" : "Start blank workout"}
             </Button>

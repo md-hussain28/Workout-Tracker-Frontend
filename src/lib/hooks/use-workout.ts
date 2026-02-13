@@ -16,11 +16,12 @@ export function useAddSet(workoutId: number) {
         onMutate: async (newSet) => {
             await queryClient.cancelQueries({ queryKey: ["workout", workoutId] });
             const previous = queryClient.getQueryData<WorkoutWithSets>(["workout", workoutId]);
+            const tempId = -Date.now();
 
             queryClient.setQueryData<WorkoutWithSets>(["workout", workoutId], (old) => {
                 if (!old) return old;
                 const optimisticSet: WorkoutSet = {
-                    id: -Date.now(),
+                    id: tempId,
                     workout_id: workoutId,
                     exercise_id: newSet.exercise_id,
                     set_order: newSet.set_order ?? 0,
@@ -38,15 +39,17 @@ export function useAddSet(workoutId: number) {
                 };
             });
 
-            return { previous };
+            return { previous, tempId };
         },
-        onSuccess: (savedSet, vars, context) => {
+        onSuccess: (savedSet, _vars, context) => {
             queryClient.setQueryData<WorkoutWithSets>(["workout", workoutId], (old) => {
                 if (!old) return old;
                 // Replace the temporary optimistic set with the real one from server
                 return {
                     ...old,
-                    sets: old.sets.map((s) => (s.id === -Date.now() ? savedSet : s.id === savedSet.id ? savedSet : s)),
+                    sets: old.sets.map((s) =>
+                        s.id === context?.tempId ? savedSet : s.id === savedSet.id ? savedSet : s
+                    ),
                 };
             });
         },

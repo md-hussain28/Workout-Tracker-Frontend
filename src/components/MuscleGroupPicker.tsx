@@ -6,14 +6,12 @@ import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import type { MuscleGroup } from "@/lib/api";
 
 interface MuscleGroupPickerProps {
@@ -45,95 +43,102 @@ export function MuscleGroupPicker({
     const selectedMuscle = muscleGroups.find((mg) => String(mg.id) === value);
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={open}
-                    className={cn("w-full justify-between rounded-xl px-3 font-normal", className)}
-                    disabled={disabled}
-                >
-                    {selectedMuscle ? (
-                        <div className="flex items-center gap-2">
-                            {selectedMuscle.color && (
-                                <div
-                                    className="size-2 rounded-full"
-                                    style={{ backgroundColor: selectedMuscle.color }}
-                                />
-                            )}
-                            <span>{selectedMuscle.name}</span>
-                        </div>
-                    ) : (
-                        <span className="text-muted-foreground">{placeholder}</span>
-                    )}
-                    <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="rounded-2xl sm:max-w-md p-0 gap-0 overflow-hidden">
-                <DialogHeader className="px-4 py-3 border-b">
-                    <DialogTitle className="text-base">Select Muscle Group</DialogTitle>
-                </DialogHeader>
-                <div className="p-2 border-b">
-                    <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search muscles..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="pl-9 rounded-xl border-none bg-muted/50 h-9"
-                            autoFocus
-                        />
+        <>
+            <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={open}
+                className={cn("w-full justify-between rounded-xl px-3 font-normal", className)}
+                disabled={disabled}
+                onClick={() => setOpen(true)}
+            >
+                {selectedMuscle ? (
+                    <div className="flex items-center gap-2">
+                        {selectedMuscle.color && (
+                            <div
+                                className="size-2 rounded-full"
+                                style={{ backgroundColor: selectedMuscle.color }}
+                            />
+                        )}
+                        <span>{selectedMuscle.name}</span>
                     </div>
-                </div>
-                <div className="max-h-[300px] overflow-y-auto p-2">
-                    {value && value !== "none" && (
-                        <button
-                            onClick={() => {
-                                onValueChange("none");
-                                setOpen(false);
-                            }}
-                            className="w-full flex items-center px-2 py-2 text-sm text-muted-foreground hover:bg-muted/50 rounded-lg mb-1"
-                        >
-                            Clear selection
-                        </button>
-                    )}
-                    {filtered.length === 0 && (
-                        <p className="text-center text-sm text-muted-foreground py-6">
-                            No muscle groups found.
-                        </p>
-                    )}
-                    <div className="space-y-1">
-                        {filtered.map((mg) => (
+                ) : (
+                    <span className="text-muted-foreground">{placeholder}</span>
+                )}
+                <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+            </Button>
+            <Sheet open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(""); }}>
+                <SheetContent
+                    side="bottom"
+                    className="rounded-t-3xl border-t pt-6 pb-[max(env(safe-area-inset-bottom),24px)] max-h-[85dvh] flex flex-col"
+                >
+                    <SheetHeader>
+                        <SheetTitle className="text-base">Select Muscle Group</SheetTitle>
+                    </SheetHeader>
+                    <div className="px-4 pb-2 pt-2">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search muscles..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="pl-10 rounded-xl bg-muted/50 border-muted"
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+                    <div className="flex-1 overflow-y-auto px-4 pb-4">
+                        {value && value !== "none" && (
                             <button
-                                key={mg.id}
                                 onClick={() => {
-                                    onValueChange(String(mg.id));
+                                    onValueChange("none");
                                     setOpen(false);
                                     setSearch("");
                                 }}
-                                className={cn(
-                                    "w-full flex items-center justify-between px-3 py-2.5 text-sm rounded-lg hover:bg-muted/50 transition-colors",
-                                    String(mg.id) === value && "bg-muted font-medium"
-                                )}
+                                className="w-full flex items-center px-3 py-2.5 text-sm text-muted-foreground hover:bg-muted/50 active:bg-muted rounded-xl mb-1 transition-colors"
                             >
-                                <div className="flex items-center gap-3">
-                                    {mg.color && (
-                                        <div
-                                            className="size-2.5 rounded-full"
-                                            style={{ backgroundColor: mg.color }}
-                                        />
-                                    )}
-                                    {mg.name}
-                                </div>
-                                {String(mg.id) === value && (
-                                    <Check className="size-4 text-primary" />
-                                )}
+                                Clear selection
                             </button>
-                        ))}
+                        )}
+                        {filtered.length === 0 && (
+                            <p className="text-center text-sm text-muted-foreground py-8">
+                                No muscle groups found.
+                            </p>
+                        )}
+                        <div className="space-y-1">
+                            {filtered.map((mg) => (
+                                <button
+                                    key={mg.id}
+                                    onClick={() => {
+                                        onValueChange(String(mg.id));
+                                        setOpen(false);
+                                        setSearch("");
+                                    }}
+                                    className={cn(
+                                        "w-full flex items-center justify-between px-3 py-3 text-sm rounded-xl hover:bg-muted/50 active:bg-muted transition-colors",
+                                        String(mg.id) === value && "bg-muted font-medium"
+                                    )}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        {mg.color ? (
+                                            <div
+                                                className="size-3 rounded-full"
+                                                style={{ backgroundColor: mg.color }}
+                                            />
+                                        ) : (
+                                            <div className="size-3 rounded-full bg-muted-foreground/20" />
+                                        )}
+                                        {mg.name}
+                                    </div>
+                                    {String(mg.id) === value && (
+                                        <Check className="size-4 text-primary" />
+                                    )}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                </div>
-            </DialogContent>
-        </Dialog>
+                </SheetContent>
+            </Sheet>
+        </>
     );
 }

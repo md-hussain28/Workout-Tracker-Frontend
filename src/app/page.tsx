@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function HomePage() {
-  const { data: streak } = useQuery({
+  const { data: streak, isLoading: isStreakLoading } = useQuery({
     queryKey: ["streak"],
     queryFn: () => api.streak.get(),
   });
@@ -42,19 +42,37 @@ export default function HomePage() {
                   <Flame className="size-6 text-orange-500" />
                 </div>
                 <div>
-                  <p className="text-3xl font-bold tabular-nums">
-                    {streak?.current_streak ?? 0}
-                  </p>
-                  <p className="text-muted-foreground text-sm font-medium">
-                    day streak
-                  </p>
+                  {isStreakLoading ? (
+                    <>
+                      <div className="h-9 w-10 rounded-md bg-orange-500/15 animate-pulse" />
+                      <div className="h-4 w-16 mt-1 rounded bg-muted animate-pulse" />
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-3xl font-bold tabular-nums">
+                        {streak?.current_streak ?? 0}
+                      </p>
+                      <p className="text-muted-foreground text-sm font-medium">
+                        day streak
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-muted-foreground text-xs">Longest</p>
-                <p className="text-lg font-semibold tabular-nums">
-                  {streak?.longest_streak ?? 0}
-                </p>
+                {isStreakLoading ? (
+                  <>
+                    <div className="h-3 w-12 mb-1 rounded bg-muted animate-pulse ml-auto" />
+                    <div className="h-6 w-8 rounded bg-muted animate-pulse ml-auto" />
+                  </>
+                ) : (
+                  <>
+                    <p className="text-muted-foreground text-xs">Longest</p>
+                    <p className="text-lg font-semibold tabular-nums">
+                      {streak?.longest_streak ?? 0}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </CardContent>
