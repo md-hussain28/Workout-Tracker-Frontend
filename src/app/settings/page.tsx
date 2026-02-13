@@ -11,6 +11,8 @@ import {
     ChevronRight,
     Play,
     RotateCw,
+    Wifi,
+    Activity,
 } from "lucide-react";
 import { api, type WorkoutTemplate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -174,10 +176,45 @@ function TemplateCard({ template }: { template: WorkoutTemplate }) {
 
 // ── Settings Page ──
 export default function SettingsPage() {
+    const queryClient = useQueryClient();
     const { data: templates = [], isLoading, refetch, isRefetching } = useQuery({
         queryKey: ["templates"],
         queryFn: () => api.templates.list(),
     });
+
+    // ── Ping state ──
+    const [pingResult, setPingResult] = useState<string | null>(null);
+    const [isPinging, setIsPinging] = useState(false);
+
+    const handlePing = async () => {
+        setIsPinging(true);
+        setPingResult(null);
+        const apiBase =
+            process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const start = performance.now();
+        try {
+            const res = await fetch(`${apiBase}/health`);
+            const elapsed = Math.round(performance.now() - start);
+            if (res.ok) {
+                setPingResult(`${elapsed}ms`);
+            } else {
+                setPingResult(`Error ${res.status}`);
+            }
+        } catch {
+            setPingResult("Unreachable");
+        } finally {
+            setIsPinging(false);
+        }
+    };
+
+    // ── Clear cache ──
+    const [cacheCleared, setCacheCleared] = useState(false);
+    const handleClearCache = () => {
+        localStorage.clear();
+        queryClient.clear();
+        setCacheCleared(true);
+        setTimeout(() => window.location.reload(), 600);
+    };
 
     return (
         <div className="mx-auto max-w-lg px-4 pt-6 pb-4">
@@ -249,13 +286,88 @@ export default function SettingsPage() {
             </div>
 
             {/* Preferences */}
-            <div>
+            <div className="mb-8">
                 <h2 className="text-lg font-semibold mb-3">Preferences</h2>
                 <Card>
                     <CardContent className="py-4 text-muted-foreground text-sm">
                         More settings coming soon — units, theme, data export.
                     </CardContent>
                 </Card>
+            </div>
+
+            {/* Advanced */}
+            <div>
+                <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <Activity className="size-5 text-muted-foreground" />
+                    Advanced
+                </h2>
+                <div className="space-y-3">
+                    {/* Ping Backend */}
+                    <Card>
+                        <CardContent className="py-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex size-9 items-center justify-center rounded-xl bg-green-500/10">
+                                        <Wifi className="size-4 text-green-500" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium">Database Sync</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {pingResult
+                                                ? pingResult === "Unreachable"
+                                                    ? "Backend unreachable"
+                                                    : `Render: ${pingResult}`
+                                                : "Check API latency"}
+                                        </p>
+                                    </div>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="rounded-xl"
+                                    onClick={handlePing}
+                                    disabled={isPinging}
+                                >
+                                    {isPinging ? (
+                                        <RotateCw className="size-3.5 animate-spin" />
+                                    ) : (
+                                        "Ping"
+                                    )}
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Clear Cache */}
+                    <Card>
+                        <CardContent className="py-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex size-9 items-center justify-center rounded-xl bg-destructive/10">
+                                        <Trash2 className="size-4 text-destructive" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium">Clear Cache</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {cacheCleared
+                                                ? "Cleared! Reloading…"
+                                                : "Wipe localStorage & query cache"}
+                                        </p>
+                                    </div>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10"
+                                    onClick={handleClearCache}
+                                    disabled={cacheCleared}
+                                >
+                                    Clear
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
         </div>
     );
