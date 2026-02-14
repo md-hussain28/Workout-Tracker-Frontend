@@ -349,39 +349,48 @@ import {
 } from "@/components/ui/table";
 
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
-import { addDays, subDays } from "date-fns";
+import { addDays, subDays, subMonths, subYears, startOfWeek, subWeeks } from "date-fns";
 import { DateRange } from "react-day-picker";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+    SelectGroup,
+    SelectLabel,
+    SelectSeparator
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 const BODY_GROUPS = [
     {
         key: "torso",
         label: "Torso",
         parts: ["chest", "waist", "hips", "neck", "shoulder"],
-        color: "oklch(0.6 0.15 20)", // Red-ish
+        color: "oklch(0.6 0.15 20)",
     },
     {
         key: "arms",
         label: "Arms",
         parts: ["bicep_l", "bicep_r", "forearm_l", "forearm_r", "wrist"],
-        color: "oklch(0.6 0.15 240)", // Blue-ish
+        color: "oklch(0.6 0.15 240)",
     },
     {
         key: "legs",
         label: "Legs",
         parts: ["thigh_l", "thigh_r", "calf_l", "calf_r", "ankle"],
-        color: "oklch(0.6 0.15 140)", // Green-ish
+        color: "oklch(0.6 0.15 140)",
     },
 ];
 
+type RangeOption = "1w" | "1m" | "3m" | "6m" | "1y" | "2y" | "all" | "custom";
+type ChartMode = "part" | "group";
+
 export default function BodyHistoryPage() {
     // State
-    const [viewMode, setViewMode] = useState<"single" | "group">("single");
-    const [chartPart, setChartPart] = useState("weight");
-    const [chartGroup, setChartGroup] = useState("torso");
-    const [rangeType, setRangeType] = useState<"7d" | "30d" | "90d" | "custom">("30d");
+    const [mode, setMode] = useState<ChartMode>("part");
+    const [selectedPart, setSelectedPart] = useState("weight");
+    const [selectedGroup, setSelectedGroup] = useState("torso");
+
+    const [rangeType, setRangeType] = useState<RangeOption>("1m");
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
-        from: subDays(new Date(), 30),
+        from: subMonths(new Date(), 1),
         to: new Date(),
     });
     const [editingLog, setEditingLog] = useState<BodyLog | null>(null);
@@ -404,26 +413,43 @@ export default function BodyHistoryPage() {
     // Handle Range Changes
     useEffect(() => {
         if (rangeType === "custom") return;
+
         const now = new Date();
-        const days = rangeType === "7d" ? 7 : rangeType === "30d" ? 30 : 90;
-        setDateRange({ from: subDays(now, days), to: now });
+        let from: Date | undefined;
+
+        switch (rangeType) {
+            case "1w": from = subWeeks(now, 1); break;
+            case "1m": from = subMonths(now, 1); break;
+            case "3m": from = subMonths(now, 3); break;
+            case "6m": from = subMonths(now, 6); break;
+            case "1y": from = subYears(now, 1); break;
+            case "2y": from = subYears(now, 2); break;
+            case "all": from = undefined; break;
+            default: from = subMonths(now, 1); break;
+        }
+
+        setDateRange({ from, to: now });
     }, [rangeType]);
 
     // Prepare Chart Data
     const chartData = useMemo(() => {
-        if (!dateRange?.from) return [];
+        let filteredHistory = history;
 
-        // Filter history by date range
-        const filteredHistory = history.filter((log) => {
-            const date = new Date(log.created_at);
-            return date >= dateRange.from! && (!dateRange.to || date <= addDays(dateRange.to, 1));
-        });
+        // Filter by date range if not "all"
+        if (rangeType !== "all" && dateRange?.from) {
+            filteredHistory = history.filter((log) => {
+                const date = new Date(log.created_at);
+                return date >= dateRange.from! && (!dateRange.to || date <= addDays(dateRange.to, 1));
+            });
+        }
 
-        const data = filteredHistory.map((log) => {
+        let data = filteredHistory.map((log) => {
             const entry: any = {
+                dateObj: new Date(log.created_at),
                 date: new Date(log.created_at).toLocaleDateString(undefined, {
                     month: "short",
                     day: "numeric",
+                    year: rangeType === "all" || rangeType === "1y" || rangeType === "2y" ? "2-digit" : undefined,
                 }),
             };
 
@@ -436,27 +462,32 @@ export default function BodyHistoryPage() {
                 });
             }
             return entry;
-        }).reverse(); // Oldest first
+        }).sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime()); // Oldest first for chart
+
+        // Downsampling for performance if too many points
+        if (data.length > 300) {
+            const factor = Math.ceil(data.length / 300);
+            data = data.filter((_, i) => i % factor === 0);
+        }
 
         return data;
-    }, [history, dateRange]);
+    }, [history, dateRange, rangeType]);
 
 
-    // Prepare Chart Keys based on selection make sure to color them
+    // Prepare Chart Keys
     const chartKeys = useMemo(() => {
-        if (viewMode === "single") {
-            const part = BODY_PARTS.find(p => p.key === chartPart);
+        if (mode === "part") {
+            const part = BODY_PARTS.find(p => p.key === selectedPart);
             return [{
-                key: chartPart,
-                label: part?.label || chartPart,
+                key: selectedPart,
+                label: part?.label || selectedPart,
                 color: "oklch(0.72 0.16 165)"
             }];
         } else {
-            const group = BODY_GROUPS.find(g => g.key === chartGroup);
+            const group = BODY_GROUPS.find(g => g.key === selectedGroup);
             if (!group) return [];
             return group.parts.map((partKey, index) => {
                 const pLabel = BODY_PARTS.find(p => p.key === partKey)?.label || partKey;
-                // Generate distinct colors for lines
                 const hue = (index * 60) % 360;
                 return {
                     key: partKey,
@@ -465,11 +496,30 @@ export default function BodyHistoryPage() {
                 };
             });
         }
-    }, [viewMode, chartPart, chartGroup]);
+    }, [mode, selectedPart, selectedGroup]);
 
-    const unit = viewMode === "single"
-        ? (chartPart === "weight" ? "kg" : chartPart === "body_fat" ? "%" : "cm")
+    const unit = mode === "part"
+        ? (selectedPart === "weight" ? "kg" : selectedPart === "body_fat" ? "%" : "cm")
         : "cm";
+
+    // Calculate Summary Stats
+    const stats = useMemo(() => {
+        if (chartData.length === 0) return null;
+        if (mode === "group") return null;
+
+        const key = chartKeys[0].key;
+        const values = chartData.map(d => d[key]).filter(v => typeof v === 'number') as number[];
+
+        if (values.length === 0) return null;
+
+        const current = values[values.length - 1];
+        const start = values[0];
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const change = current - start;
+
+        return { current, min, max, change };
+    }, [chartData, chartKeys, mode]);
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto w-full pb-10">
@@ -483,81 +533,137 @@ export default function BodyHistoryPage() {
                 <h1 className="text-2xl font-bold tracking-tight">Body History</h1>
             </div>
 
-            <Card>
-                <CardHeader className="pb-4">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex bg-muted/50 p-1 rounded-lg w-fit">
-                            <button
-                                onClick={() => setViewMode("single")}
-                                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === "single" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-                                    }`}
-                            >
-                                Single Metric
-                            </button>
-                            <button
-                                onClick={() => setViewMode("group")}
-                                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === "group" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-                                    }`}
-                            >
-                                Group View
-                            </button>
+            <Card className="border-none shadow-sm bg-background/60 backdrop-blur-sm">
+                <CardHeader className="pb-2 space-y-4">
+                    {/* Controls Row */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+
+                        {/* Left Group: Mode Toggle + Content Select */}
+                        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center w-full lg:w-auto">
+
+                            {/* Modern Segmented Control for Mode */}
+                            <div className="flex p-1 bg-muted rounded-lg shrink-0">
+                                <button
+                                    onClick={() => setMode("part")}
+                                    className={cn(
+                                        "px-4 py-1.5 text-xs font-medium rounded-md transition-all",
+                                        mode === "part"
+                                            ? "bg-background text-foreground shadow-sm"
+                                            : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    Individual
+                                </button>
+                                <button
+                                    onClick={() => setMode("group")}
+                                    className={cn(
+                                        "px-4 py-1.5 text-xs font-medium rounded-md transition-all",
+                                        mode === "group"
+                                            ? "bg-background text-foreground shadow-sm"
+                                            : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    Compare Groups
+                                </button>
+                            </div>
+
+                            {/* Contextual Dropdown */}
+                            <div className="w-full sm:w-[220px]">
+                                {mode === "part" ? (
+                                    <Select value={selectedPart} onValueChange={setSelectedPart}>
+                                        <SelectTrigger className="h-9 w-full">
+                                            <SelectValue placeholder="Select Part" />
+                                        </SelectTrigger>
+                                        <SelectContent className="max-h-[400px] w-[300px]">
+                                            <SelectGroup>
+                                                <SelectLabel>Core Metrics</SelectLabel>
+                                                <div className="grid grid-cols-2 gap-1 px-1">
+                                                    <SelectItem value="weight">Weight</SelectItem>
+                                                    <SelectItem value="body_fat">Body Fat</SelectItem>
+                                                </div>
+                                            </SelectGroup>
+                                            <SelectSeparator />
+                                            <SelectGroup>
+                                                <SelectLabel>Measurements</SelectLabel>
+                                                <div className="grid grid-cols-2 gap-1 px-1">
+                                                    {BODY_PARTS.filter(p => !["weight", "body_fat"].includes(p.key)).map((bp) => (
+                                                        <SelectItem key={bp.key} value={bp.key} className="text-xs">
+                                                            {bp.label}
+                                                        </SelectItem>
+                                                    ))}
+                                                </div>
+                                            </SelectGroup>
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                                        <SelectTrigger className="h-9 w-full">
+                                            <SelectValue placeholder="Select Group" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectGroup>
+                                                <SelectLabel>Body Region</SelectLabel>
+                                                {BODY_GROUPS.map((g) => (
+                                                    <SelectItem key={g.key} value={g.key}>{g.label}</SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                            </div>
                         </div>
 
-                        {/* Range Selectors */}
-                        <div className="flex items-center gap-2">
-                            <Tabs value={rangeType} onValueChange={(v) => setRangeType(v as any)} className="w-[200px]">
-                                <TabsList className="grid w-full grid-cols-3">
-                                    <TabsTrigger value="7d">7D</TabsTrigger>
-                                    <TabsTrigger value="30d">30D</TabsTrigger>
-                                    <TabsTrigger value="90d">90D</TabsTrigger>
-                                </TabsList>
-                            </Tabs>
-                            <Button
-                                variant={rangeType === "custom" ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => setRangeType("custom")}
-                            >
-                                Custom
-                            </Button>
-                        </div>
-                    </div>
+                        {/* Right Group: Date Range */}
+                        <div className="flex items-center gap-2 w-full lg:w-auto justify-start lg:justify-end">
+                            <Select value={rangeType} onValueChange={(v) => setRangeType(v as RangeOption)}>
+                                <SelectTrigger className="h-9 w-[130px]">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent align="end">
+                                    <SelectItem value="1w">1 Week</SelectItem>
+                                    <SelectItem value="1m">1 Month</SelectItem>
+                                    <SelectItem value="3m">3 Months</SelectItem>
+                                    <SelectItem value="6m">6 Months</SelectItem>
+                                    <SelectItem value="1y">1 Year</SelectItem>
+                                    <SelectItem value="2y">2 Years</SelectItem>
+                                    <SelectItem value="all">All Time</SelectItem>
+                                    <SelectItem value="custom">Custom</SelectItem>
+                                </SelectContent>
+                            </Select>
 
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4">
-                        {/* Metric/Group Selector */}
-                        <div className="w-[200px]">
-                            {viewMode === "single" ? (
-                                <Select value={chartPart} onValueChange={setChartPart}>
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {BODY_PARTS.map((bp) => (
-                                            <SelectItem key={bp.key} value={bp.key}>{bp.label}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            ) : (
-                                <Select value={chartGroup} onValueChange={setChartGroup}>
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {BODY_GROUPS.map((g) => (
-                                            <SelectItem key={g.key} value={g.key}>{g.label}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                            {rangeType === "custom" && (
+                                <DatePickerWithRange date={dateRange} setDate={setDateRange} className="flex-1 sm:flex-none" />
                             )}
                         </div>
-
-                        {/* Custom Date Picker (Visible only if Custom) */}
-                        {rangeType === "custom" && (
-                            <DatePickerWithRange date={dateRange} setDate={setDateRange} />
-                        )}
                     </div>
+
+                    {/* Summary Stats Row */}
+                    {!isLoading && stats && (
+                        <div className="grid grid-cols-4 gap-4 py-4 mt-2 border-t border-b bg-secondary/5 rounded-lg px-2">
+                            <div className="flex flex-col items-center sm:items-start">
+                                <span className="text-[10px] uppercase text-muted-foreground tracking-wider font-semibold">Current</span>
+                                <span className="text-xl font-bold tabular-nums">{stats.current} <span className="text-xs font-normal text-muted-foreground">{unit}</span></span>
+                            </div>
+                            <div className="flex flex-col items-center sm:items-start">
+                                <span className="text-[10px] uppercase text-muted-foreground tracking-wider font-semibold">Change</span>
+                                <span className={`text-xl font-bold tabular-nums ${stats.change > 0 ? 'text-green-500' : stats.change < 0 ? 'text-rose-500' : ''}`}>
+                                    {stats.change > 0 && "+"}{stats.change.toFixed(1)} <span className="text-xs font-normal text-muted-foreground">{unit}</span>
+                                </span>
+                            </div>
+                            <div className="flex flex-col items-center sm:items-start">
+                                <span className="text-[10px] uppercase text-muted-foreground tracking-wider font-semibold">Min</span>
+                                <span className="text-lg font-medium tabular-nums text-muted-foreground">{stats.min}</span>
+                            </div>
+                            <div className="flex flex-col items-center sm:items-start">
+                                <span className="text-[10px] uppercase text-muted-foreground tracking-wider font-semibold">Max</span>
+                                <span className="text-lg font-medium tabular-nums text-muted-foreground">{stats.max}</span>
+                            </div>
+                        </div>
+                    )}
                 </CardHeader>
+
                 <CardContent>
-                    <div className="h-[300px] w-full mt-2">
+                    <div className="h-[320px] w-full mt-2">
                         <BodyPartChart
                             data={chartData}
                             keys={chartKeys}

@@ -40,31 +40,36 @@ export default function BodyPartChart({ data, keys, unit }: Props) {
     // Common Axis Props
     const xAxisProps = {
         dataKey: "date",
-        tick: { fontSize: 11, fill: "oklch(0.65 0.02 260)" },
+        tick: { fontSize: 10, fill: "oklch(0.55 0.02 260)" },
         tickLine: false,
         axisLine: false,
         interval: "preserveStartEnd" as const,
-        minTickGap: 30,
+        minTickGap: 40,
+        dy: 10,
     };
 
     const yAxisProps = {
         domain: [minV, maxV],
-        tick: { fontSize: 11, fill: "oklch(0.65 0.02 260)" },
+        tick: { fontSize: 10, fill: "oklch(0.55 0.02 260)" },
         tickLine: false,
         axisLine: false,
-        width: 40,
+        width: 35,
+        dx: -5,
     };
 
     const tooltipProps = {
         contentStyle: {
-            backgroundColor: "oklch(0.19 0.02 260 / 0.95)",
-            border: "1px solid oklch(0.3 0.03 260)",
+            backgroundColor: "rgba(20, 20, 25, 0.8)",
+            backdropFilter: "blur(8px)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
             borderRadius: "12px",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.5)",
             fontSize: "13px",
-            backdropFilter: "blur(12px)",
+            padding: "8px 12px",
         },
-        labelStyle: { color: "oklch(0.65 0.02 260)", fontSize: "11px", marginBottom: "4px" },
-        itemStyle: { padding: 0 },
+        labelStyle: { color: "oklch(0.7 0.02 260)", fontSize: "11px", marginBottom: "4px", fontWeight: 500 },
+        itemStyle: { padding: 0, fontWeight: 600 },
+        cursor: { stroke: "oklch(0.55 0.02 260)", strokeWidth: 1, strokeDasharray: "4 4" },
         formatter: (value: number | string | undefined, name: string | undefined) => {
             if (value == null) return ["-", name || ""];
             return [`${value} ${unit}`, name];
@@ -73,13 +78,17 @@ export default function BodyPartChart({ data, keys, unit }: Props) {
 
     if (isMulti) {
         return (
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={data} margin={{ top: 10, right: 10, bottom: 0, left: -10 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0.03 260 / 0.4)" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0.03 260 / 0.2)" vertical={false} />
                     <XAxis {...xAxisProps} />
                     <YAxis {...yAxisProps} />
                     <Tooltip {...tooltipProps} />
-                    <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }} />
+                    <Legend
+                        wrapperStyle={{ fontSize: "11px", paddingTop: "15px", opacity: 0.8 }}
+                        iconType="circle"
+                        iconSize={8}
+                    />
                     {keys.map((k) => (
                         <Line
                             key={k.key}
@@ -89,7 +98,8 @@ export default function BodyPartChart({ data, keys, unit }: Props) {
                             stroke={k.color}
                             strokeWidth={2}
                             dot={false}
-                            activeDot={{ r: 4, strokeWidth: 0 }}
+                            activeDot={{ r: 4, strokeWidth: 2, stroke: "#000" }}
+                            connectNulls
                         />
                     ))}
                 </LineChart>
@@ -100,15 +110,15 @@ export default function BodyPartChart({ data, keys, unit }: Props) {
     const primaryKey = keys[0];
 
     return (
-        <ResponsiveContainer width="100%" height={250}>
-            <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
+        <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 10, right: 10, bottom: 0, left: -10 }}>
                 <defs>
                     <linearGradient id="partGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={primaryKey.color} stopOpacity={0.3} />
-                        <stop offset="95%" stopColor={primaryKey.color} stopOpacity={0} />
+                        <stop offset="0%" stopColor={primaryKey.color} stopOpacity={0.4} />
+                        <stop offset="100%" stopColor={primaryKey.color} stopOpacity={0.0} />
                     </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0.03 260 / 0.4)" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0.03 260 / 0.2)" vertical={false} />
                 <XAxis {...xAxisProps} />
                 <YAxis {...yAxisProps} />
                 <Tooltip {...tooltipProps} formatter={(val) => [`${val} ${unit}`, primaryKey.label]} />
@@ -116,16 +126,17 @@ export default function BodyPartChart({ data, keys, unit }: Props) {
                     type="monotone"
                     dataKey={primaryKey.key}
                     stroke={primaryKey.color}
-                    strokeWidth={2.5}
+                    strokeWidth={2}
                     fill="url(#partGradient)"
-                    animationDuration={800}
+                    animationDuration={1000}
                     dot={false}
                     activeDot={{
                         r: 5,
                         fill: primaryKey.color,
                         strokeWidth: 2,
-                        stroke: "oklch(0.19 0.02 260)",
+                        stroke: "#000",
                     }}
+                    connectNulls
                 />
             </AreaChart>
         </ResponsiveContainer>
