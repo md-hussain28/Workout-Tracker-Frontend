@@ -37,37 +37,37 @@ export const api = {
   workouts: {
     list: (skip = 0, limit = 50, from_date?: string, to_date?: string) =>
       fetchApi<Workout[]>(`/workouts`, { params: { skip, limit, from_date, to_date } }),
-    get: (id: number) => fetchApi<WorkoutWithSets>(`/workouts/${id}`),
+    get: (id: string) => fetchApi<WorkoutWithSets>(`/workouts/${id}`),
     create: (body: { notes?: string }) =>
       fetchApi<Workout>(`/workouts`, { method: "POST", body: JSON.stringify(body) }),
-    update: (id: number, body: { started_at?: string; ended_at?: string; duration_seconds?: number; notes?: string }) =>
+    update: (id: string, body: { started_at?: string; ended_at?: string; duration_seconds?: number; notes?: string }) =>
       fetchApi<Workout>(`/workouts/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
-    delete: (id: number) =>
+    delete: (id: string) =>
       fetchApi<void>(`/workouts/${id}`, { method: "DELETE" }),
-    addSet: (workoutId: number, body: WorkoutSetCreate) =>
+    addSet: (workoutId: string, body: WorkoutSetCreate) =>
       fetchApi<WorkoutSet>(`/workouts/${workoutId}/sets`, {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    updateSet: (workoutId: number, setId: number, body: WorkoutSetUpdate) =>
+    updateSet: (workoutId: string, setId: string, body: WorkoutSetUpdate) =>
       fetchApi<WorkoutSet>(`/workouts/${workoutId}/sets/${setId}`, {
         method: "PATCH",
         body: JSON.stringify(body),
       }),
-    deleteSet: (workoutId: number, setId: number) =>
+    deleteSet: (workoutId: string, setId: string) =>
       fetchApi<void>(`/workouts/${workoutId}/sets/${setId}`, { method: "DELETE" }),
   },
 
   exercises: {
     list: (skip = 0, limit = 200) =>
       fetchApi<Exercise[]>(`/exercises`, { params: { skip, limit } }),
-    get: (id: number) => fetchApi<Exercise>(`/exercises/${id}`),
-    getStats: (id: number) => fetchApi<ExerciseStatsResponse>(`/exercises/${id}/stats`),
+    get: (id: string) => fetchApi<Exercise>(`/exercises/${id}`),
+    getStats: (id: string) => fetchApi<ExerciseStatsResponse>(`/exercises/${id}/stats`),
     create: (body: ExerciseCreate) =>
       fetchApi<Exercise>(`/exercises`, { method: "POST", body: JSON.stringify(body) }),
-    update: (id: number, body: Partial<ExerciseCreate>) =>
+    update: (id: string, body: Partial<ExerciseCreate>) =>
       fetchApi<Exercise>(`/exercises/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
-    delete: (id: number) =>
+    delete: (id: string) =>
       fetchApi<void>(`/exercises/${id}`, { method: "DELETE" }),
   },
 
@@ -75,16 +75,16 @@ export const api = {
     list: () => fetchApi<MuscleGroup[]>(`/muscle-groups`),
     create: (body: { name: string; color?: string | null }) =>
       fetchApi<MuscleGroup>(`/muscle-groups`, { method: "POST", body: JSON.stringify(body) }),
-    get: (id: number) => fetchApi<MuscleGroup>(`/muscle-groups/${id}`),
-    update: (id: number, body: { name?: string; color?: string | null }) =>
+    get: (id: string) => fetchApi<MuscleGroup>(`/muscle-groups/${id}`),
+    update: (id: string, body: { name?: string; color?: string | null }) =>
       fetchApi<MuscleGroup>(`/muscle-groups/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
-    delete: (id: number) =>
+    delete: (id: string) =>
       fetchApi<void>(`/muscle-groups/${id}`, { method: "DELETE" }),
-    getStats: (id: number) => fetchApi<MuscleGroupStats>(`/muscle-groups/${id}/stats`),
+    getStats: (id: string) => fetchApi<MuscleGroupStats>(`/muscle-groups/${id}/stats`),
   },
 
   previousSession: {
-    get: (exerciseId: number, excludeWorkoutId?: number) =>
+    get: (exerciseId: string, excludeWorkoutId?: string) =>
       fetchApi<PreviousSession>(`/previous-session/exercises/${exerciseId}/previous-session`, {
         params: excludeWorkoutId != null ? { exclude_workout_id: excludeWorkoutId } : undefined,
       }),
@@ -92,20 +92,20 @@ export const api = {
 
   templates: {
     list: () => fetchApi<WorkoutTemplate[]>(`/templates`),
-    get: (id: number) => fetchApi<WorkoutTemplate>(`/templates/${id}`),
+    get: (id: string) => fetchApi<WorkoutTemplate>(`/templates/${id}`),
     create: (body: { name: string }) =>
       fetchApi<WorkoutTemplate>(`/templates`, { method: "POST", body: JSON.stringify(body) }),
-    createFromWorkout: (body: { name: string; workout_id: number }) =>
+    createFromWorkout: (body: { name: string; workout_id: string }) =>
       fetchApi<WorkoutTemplate>(`/templates/from-workout`, {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    update: (id: number, body: { name?: string }) =>
+    update: (id: string, body: { name?: string }) =>
       fetchApi<WorkoutTemplate>(`/templates/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
-    delete: (id: number) =>
+    delete: (id: string) =>
       fetchApi<void>(`/templates/${id}`, { method: "DELETE" }),
-    instantiate: (id: number) =>
-      fetchApi<{ workout_id: number; started_at: string | null; exercise_order: number[] }>(
+    instantiate: (id: string) =>
+      fetchApi<{ workout_id: string; started_at: string | null; exercise_order: number[] }>(
         `/templates/${id}/instantiate`,
         { method: "POST" }
       ),
@@ -116,7 +116,7 @@ export const api = {
       fetchApi<MuscleVolumeResponse>(`/analytics/muscle-volume`, {
         params: { from_date, to_date },
       }),
-    oneRm: (exerciseId: number, from_date?: string, to_date?: string, formula = "brzycki") =>
+    oneRm: (exerciseId: string, from_date?: string, to_date?: string, formula = "brzycki") =>
       fetchApi<OneRmResponse>(`/analytics/one-rm/${exerciseId}`, {
         params: { from_date, to_date, formula },
       }),
@@ -148,9 +148,9 @@ export const api = {
     listLogs: (days?: number) =>
       fetchApi<BodyLog[]>(`/body/log`, { params: days != null ? { days } : undefined }),
     getLatest: () => fetchApi<BodyLog | null>(`/body/log/latest`),
-    updateLog: (id: number, data: BodyLogUpdate) =>
+    updateLog: (id: string, data: BodyLogUpdate) =>
       fetchApi<BodyLog>(`/body/log/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
-    deleteLog: (id: number) =>
+    deleteLog: (id: string) =>
       fetchApi<void>(`/body/log/${id}`, { method: "DELETE" }),
   },
 
@@ -173,28 +173,28 @@ export interface StreakResponse {
 }
 
 export interface MuscleGroup {
-  id: number;
+  id: string;
   name: string;
   color: string | null;
 }
 
 export interface Exercise {
-  id: number;
+  id: string;
   name: string;
   description: string | null;
   unit: string;
   measurement_mode: MeasurementMode;
   rest_seconds_preset: number | null;
-  primary_muscle_group_id: number | null;
-  secondary_muscle_group_id: number | null;
-  tertiary_muscle_group_id: number | null;
+  primary_muscle_group_id: string | null;
+  secondary_muscle_group_id: string | null;
+  tertiary_muscle_group_id: string | null;
   primary_muscle_group: MuscleGroup | null;
   secondary_muscle_group: MuscleGroup | null;
   tertiary_muscle_group: MuscleGroup | null;
 }
 
 export interface MuscleGroupStats {
-  id: number;
+  id: string;
   name: string;
   color: string | null;
   total_workouts: number;
@@ -207,7 +207,7 @@ export interface MuscleGroupStats {
   };
   volume_history: { date: string; volume: number }[];
   top_exercises: {
-    id: number;
+    id: string;
     name: string;
     volume: number;
     set_count: number;
@@ -220,13 +220,13 @@ export interface ExerciseCreate {
   unit?: string;
   measurement_mode?: MeasurementMode;
   rest_seconds_preset?: number | null;
-  primary_muscle_group_id?: number | null;
-  secondary_muscle_group_id?: number | null;
-  tertiary_muscle_group_id?: number | null;
+  primary_muscle_group_id?: string | null;
+  secondary_muscle_group_id?: string | null;
+  tertiary_muscle_group_id?: string | null;
 }
 
 export interface ExerciseStatsResponse {
-  exercise_id: number;
+  exercise_id: string;
   total_sets: number;
   total_workouts: number;
   first_performed: string | null;
@@ -243,7 +243,7 @@ export interface ExerciseStatsResponse {
   volume_history: { date: string; volume: number }[];
   max_weight_history: { date: string; weight: number }[];
   recent_history: {
-    workout_id: number;
+    workout_id: string;
     started_at: string | null;
     sets: {
       set_order: number;
@@ -257,9 +257,9 @@ export interface ExerciseStatsResponse {
 }
 
 export interface WorkoutSet {
-  id: number;
-  workout_id: number;
-  exercise_id: number;
+  id: string;
+  workout_id: string;
+  exercise_id: string;
   set_order: number;
   weight: number | null;
   reps: number | null;
@@ -272,7 +272,7 @@ export interface WorkoutSet {
 }
 
 export interface WorkoutSetCreate {
-  exercise_id: number;
+  exercise_id: string;
   set_order?: number;
   weight?: number | null;
   reps?: number | null;
@@ -290,7 +290,7 @@ export interface WorkoutSetUpdate {
 }
 
 export interface Workout {
-  id: number;
+  id: string;
   started_at: string;
   ended_at: string | null;
   duration_seconds: number | null;
@@ -303,34 +303,34 @@ export interface WorkoutWithSets extends Workout {
 }
 
 export interface TemplateExerciseRead {
-  id: number;
-  template_id: number;
-  exercise_id: number;
+  id: string;
+  template_id: string;
+  exercise_id: string;
   order_in_template: number;
   exercise: Exercise | null;
 }
 
 export interface WorkoutTemplate {
-  id: number;
+  id: string;
   name: string;
   created_at: string;
   exercises: TemplateExerciseRead[];
 }
 
 export interface PreviousSession {
-  workout_id: number | null;
+  workout_id: string | null;
   workout_started_at?: string;
-  sets: { id: number; set_order: number; weight: number | null; reps: number | null; duration_seconds: number | null; set_label: string | null }[];
+  sets: { id: string; set_order: number; weight: number | null; reps: number | null; duration_seconds: number | null; set_label: string | null }[];
 }
 
 export interface MuscleVolumeResponse {
   from: string | null;
   to: string | null;
-  muscle_groups: { muscle_group_id: number; name: string; volume: number }[];
+  muscle_groups: { muscle_group_id: string; name: string; volume: number }[];
 }
 
 export interface OneRmResponse {
-  exercise_id: number;
+  exercise_id: string;
   formula: string;
   points: { date: string | null; estimated_1rm: number }[];
 }
@@ -338,7 +338,7 @@ export interface OneRmResponse {
 export interface TonnageResponse {
   from: string | null;
   to: string | null;
-  workouts: { workout_id: number; started_at: string | null; tonnage: number }[];
+  workouts: { workout_id: string; started_at: string | null; tonnage: number }[];
 }
 
 export interface ConsistencyResponse {
@@ -353,10 +353,10 @@ export interface PrTrophyRoom {
   to: string;
   count: number;
   records: {
-    set_id: number;
-    workout_id: number;
+    set_id: string;
+    workout_id: string;
     workout_started_at: string | null;
-    exercise_id: number;
+    exercise_id: string;
     exercise_name: string | null;
     pr_type: string | null;
     weight: number | null;
@@ -379,7 +379,7 @@ export interface RecoveryResponse {
 // ── Body Analytics Types ──
 
 export interface UserBio {
-  id: number;
+  id: string;
   height_cm: number;
   age: number;
   sex: "male" | "female";
@@ -421,8 +421,8 @@ export interface ComputedStats {
 }
 
 export interface BodyLog {
-  id: number;
-  user_id: number;
+  id: string;
+  user_id: string;
   weight_kg: number;
   body_fat_pct: number | null;
   measurements: Measurements | null;

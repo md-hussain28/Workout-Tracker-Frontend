@@ -4,8 +4,8 @@ import { TemplateDetailClient } from "./template-detail-client";
 
 export default async function TemplateDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const templateId = parseInt(id, 10);
-  if (Number.isNaN(templateId)) notFound();
+  const { id: templateId } = await params;
+  if (!templateId) notFound();
 
   let template: Awaited<ReturnType<typeof api.templates.get>>;
   try {

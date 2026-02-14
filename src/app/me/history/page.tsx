@@ -403,7 +403,7 @@ export default function BodyHistoryPage() {
 
     const queryClient = useQueryClient();
     const deleteMutation = useMutation({
-        mutationFn: (id: number) => api.body.deleteLog(id),
+        mutationFn: (id: string) => api.body.deleteLog(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["body-history"] });
             queryClient.invalidateQueries({ queryKey: ["body-latest"] });

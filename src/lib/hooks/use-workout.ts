@@ -1,14 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type WorkoutWithSets, type WorkoutSetCreate, type WorkoutSet, type WorkoutSetUpdate } from "@/lib/api";
 
-export function useWorkout(id: number) {
+export function useWorkout(id: string) {
     return useQuery({
         queryKey: ["workout", id],
         queryFn: () => api.workouts.get(id),
     });
 }
 
-export function useAddSet(workoutId: number) {
+export function useAddSet(workoutId: string) {
     const queryClient = useQueryClient();
 
     return useMutation({
@@ -16,7 +16,7 @@ export function useAddSet(workoutId: number) {
         onMutate: async (newSet) => {
             await queryClient.cancelQueries({ queryKey: ["workout", workoutId] });
             const previous = queryClient.getQueryData<WorkoutWithSets>(["workout", workoutId]);
-            const tempId = -Date.now();
+            const tempId = `temp-${Date.now()}`;
 
             queryClient.setQueryData<WorkoutWithSets>(["workout", workoutId], (old) => {
                 if (!old) return old;
@@ -60,11 +60,11 @@ export function useAddSet(workoutId: number) {
     });
 }
 
-export function useUpdateSet(workoutId: number) {
+export function useUpdateSet(workoutId: string) {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ setId, body }: { setId: number; body: WorkoutSetUpdate }) =>
+        mutationFn: ({ setId, body }: { setId: string; body: WorkoutSetUpdate }) =>
             api.workouts.updateSet(workoutId, setId, body),
         onMutate: async ({ setId, body }) => {
             await queryClient.cancelQueries({ queryKey: ["workout", workoutId] });
@@ -93,11 +93,11 @@ export function useUpdateSet(workoutId: number) {
     });
 }
 
-export function useDeleteSet(workoutId: number) {
+export function useDeleteSet(workoutId: string) {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (setId: number) => api.workouts.deleteSet(workoutId, setId),
+        mutationFn: (setId: string) => api.workouts.deleteSet(workoutId, setId),
         onMutate: async (setId) => {
             await queryClient.cancelQueries({ queryKey: ["workout", workoutId] });
             const previous = queryClient.getQueryData<WorkoutWithSets>(["workout", workoutId]);
@@ -123,11 +123,11 @@ export function useDeleteSet(workoutId: number) {
     });
 }
 
-export function useDeleteExerciseSets(workoutId: number) {
+export function useDeleteExerciseSets(workoutId: string) {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (setIds: number[]) => {
+        mutationFn: async (setIds: string[]) => {
             await Promise.all(setIds.map((id) => api.workouts.deleteSet(workoutId, id)));
         },
         onMutate: async (setIds) => {
@@ -156,7 +156,7 @@ export function useDeleteExerciseSets(workoutId: number) {
     });
 }
 
-export function useEndWorkout(workoutId: number) {
+export function useEndWorkout(workoutId: string) {
     const queryClient = useQueryClient();
 
     return useMutation({
@@ -196,7 +196,7 @@ export function useDeleteWorkout() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (id: number) => api.workouts.delete(id),
+        mutationFn: (id: string) => api.workouts.delete(id),
         onMutate: async (id) => {
             // Optimistically remove from list
             await queryClient.cancelQueries({ queryKey: ["workouts"] });

@@ -226,8 +226,8 @@ function LogBodyDialog() {
             await queryClient.cancelQueries({ queryKey: ["body-history"] });
             const prevLatest = queryClient.getQueryData(["body-latest"]);
             queryClient.setQueryData(["body-latest"], {
-                id: Date.now(),
-                user_id: 1,
+                id: `temp-${Date.now()}`,
+                user_id: "1", // TODO: Real user ID
                 weight_kg: newLog.weight_kg,
                 body_fat_pct: null,
                 measurements: newLog.measurements ?? null,

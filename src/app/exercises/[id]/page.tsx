@@ -87,7 +87,7 @@ function modeLabel(mode: string) {
 
 export default function ExerciseDetailPage() {
   const params = useParams<{ id: string }>();
-  const exerciseId = parseInt(params.id, 10);
+  const exerciseId = params.id;
   const [timeRange, setTimeRange] = useState<TimeRangeValue>("1m");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
@@ -95,7 +95,7 @@ export default function ExerciseDetailPage() {
   const { data: exercise, isLoading: exLoading } = useQuery({
     queryKey: ["exercise", exerciseId],
     queryFn: () => api.exercises.get(exerciseId),
-    enabled: !isNaN(exerciseId),
+    enabled: !!exerciseId,
   });
 
   const {
@@ -106,7 +106,7 @@ export default function ExerciseDetailPage() {
   } = useQuery({
     queryKey: ["exerciseStats", exerciseId],
     queryFn: () => api.exercises.getStats(exerciseId),
-    enabled: !isNaN(exerciseId),
+    enabled: !!exerciseId,
   });
 
   const range = useMemo(
@@ -133,7 +133,7 @@ export default function ExerciseDetailPage() {
     };
   }, [stats, range]);
 
-  if (isNaN(exerciseId)) return notFound();
+  if (!exerciseId) return notFound();
 
   if (exLoading) {
     return (
