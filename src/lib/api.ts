@@ -139,6 +139,21 @@ export const api = {
       fetchApi<RecoveryResponse>(`/analytics/recovery`),
   },
 
+  body: {
+    getBio: () => fetchApi<UserBio | null>(`/body/bio`),
+    upsertBio: (data: UserBioCreate) =>
+      fetchApi<UserBio>(`/body/bio`, { method: "PUT", body: JSON.stringify(data) }),
+    createLog: (data: BodyLogCreate) =>
+      fetchApi<BodyLog>(`/body/log`, { method: "POST", body: JSON.stringify(data) }),
+    listLogs: (days?: number) =>
+      fetchApi<BodyLog[]>(`/body/log`, { params: days != null ? { days } : undefined }),
+    getLatest: () => fetchApi<BodyLog | null>(`/body/log/latest`),
+    updateLog: (id: number, data: BodyLogUpdate) =>
+      fetchApi<BodyLog>(`/body/log/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    deleteLog: (id: number) =>
+      fetchApi<void>(`/body/log/${id}`, { method: "DELETE" }),
+  },
+
   pr: {
     trophyRoom: (period: "month" | "year" = "month") =>
       fetchApi<PrTrophyRoom>(`/pr/trophy-room`, { params: { period } }),
@@ -360,3 +375,71 @@ export interface RecoveryMuscle {
 export interface RecoveryResponse {
   muscles: RecoveryMuscle[];
 }
+
+// ── Body Analytics Types ──
+
+export interface UserBio {
+  id: number;
+  height_cm: number;
+  age: number;
+  sex: "male" | "female";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserBioCreate {
+  height_cm: number;
+  age: number;
+  sex: "male" | "female";
+}
+
+export interface Measurements {
+  chest?: number;
+  waist?: number;
+  hips?: number;
+  neck?: number;
+  shoulder?: number;
+  bicep_l?: number;
+  bicep_r?: number;
+  forearm_l?: number;
+  forearm_r?: number;
+  thigh_l?: number;
+  thigh_r?: number;
+  calf_l?: number;
+  calf_r?: number;
+  wrist?: number;
+  ankle?: number;
+}
+
+export interface ComputedStats {
+  bmr: number | null;
+  bf_navy: number | null;
+  ffmi: number | null;
+  percentiles: Record<string, number>;
+  aesthetic_rank: number | null;
+  symmetry: Record<string, { left: number; right: number; ratio: number; delta: number }>;
+}
+
+export interface BodyLog {
+  id: number;
+  user_id: number;
+  weight_kg: number;
+  body_fat_pct: number | null;
+  measurements: Measurements | null;
+  computed_stats: ComputedStats | null;
+  created_at: string;
+}
+
+export interface BodyLogCreate {
+  weight_kg?: number | null;
+  body_fat_pct?: number | null;
+  measurements?: Measurements | null;
+}
+
+export interface BodyLogUpdate {
+  weight_kg?: number | null;
+  body_fat_pct?: number | null;
+  measurements?: Measurements | null;
+  created_at?: string | null;
+}
+

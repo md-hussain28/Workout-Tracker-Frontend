@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, History, Dumbbell, BarChart3, Settings } from "lucide-react";
+import { Home, History, Dumbbell, BarChart3, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -10,7 +10,7 @@ const navItems = [
   { href: "/workouts", label: "Workouts", icon: History },
   { href: "/exercises", label: "Exercises", icon: Dumbbell },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/me", label: "Me", icon: User },
 ];
 
 export function BottomNav() {
