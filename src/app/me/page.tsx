@@ -108,6 +108,29 @@ const PERCENTILE_LABELS: Record<string, string> = {
     ankle: "Ankle",
 };
 
+// ── Me Page Loading Screen ──────────────────────────────────────────
+function MePageLoadingScreen() {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
+            <div className="relative mb-8">
+                <div className="size-20 rounded-3xl bg-primary/10 flex items-center justify-center animate-pulse">
+                    <Scale className="size-10 text-primary/70" />
+                </div>
+                <div className="absolute -inset-2 rounded-[1.75rem] bg-primary/5 animate-pulse" />
+            </div>
+            <p className="text-sm font-medium text-foreground mb-1">Loading your body analytics</p>
+            <p className="text-xs text-muted-foreground max-w-[240px]">
+                Fetching your profile and stats…
+            </p>
+            <div className="mt-8 w-full max-w-[280px] space-y-3">
+                <Skeleton className="h-14 w-full rounded-2xl" />
+                <Skeleton className="h-14 w-full rounded-2xl" />
+                <Skeleton className="h-32 w-full rounded-2xl" />
+            </div>
+        </div>
+    );
+}
+
 // ── Bio Setup Dialog ────────────────────────────────────────────────
 function BioSetupDialog({
     bio,
@@ -125,7 +148,9 @@ function BioSetupDialog({
 
     const mutation = useMutation({
         mutationFn: (data: UserBioCreate) => api.body.upsertBio(data),
-        onSuccess: () => {
+        onSuccess: (data) => {
+            // Update cache immediately so body analytics show even if GET /body/bio returns null
+            queryClient.setQueryData(["body-bio"], data);
             queryClient.invalidateQueries({ queryKey: ["body-bio"] });
             setOpen(false);
             setErrors({});
@@ -454,11 +479,13 @@ export default function MePage() {
         enabled: !!bio,
     });
 
-    const { data: history = [] } = useQuery({
+    const { data: history = [], isLoading: isHistoryLoading } = useQuery({
         queryKey: ["body-history"],
         queryFn: () => api.body.listLogs(),
         enabled: !!bio,
     });
+
+    const isStatsLoading = isLatestLoading || isHistoryLoading;
 
     const stats = latest?.computed_stats;
 
@@ -524,14 +551,8 @@ export default function MePage() {
                 </Link>
             </div>
 
-            {/* Loading state */}
-            {isBioLoading && (
-                <div className="space-y-4">
-                    <Skeleton className="h-32 w-full rounded-2xl" />
-                    <Skeleton className="h-12 w-full rounded-2xl" />
-                    <Skeleton className="h-48 w-full rounded-2xl" />
-                </div>
-            )}
+            {/* User-friendly loading screen */}
+            {isBioLoading && <MePageLoadingScreen />}
 
             {/* Bio not set up yet */}
             {!isBioLoading && !bio && (
@@ -595,9 +616,9 @@ export default function MePage() {
                     )}
 
                     {/* Stats Bento Grid */}
-                    {(latest || history.length > 0) && (
+                    {(isStatsLoading || latest || history.length > 0) && (
                         <div className="grid grid-cols-3 gap-3">
-                            {isLatestLoading ? (
+                            {isStatsLoading ? (
                                 <>
                                     <Skeleton className="h-24 rounded-2xl" />
                                     <Skeleton className="h-24 rounded-2xl" />
@@ -740,7 +761,7 @@ export default function MePage() {
 
 
                     {/* No data yet nudge */}
-                    {!isLatestLoading && !latest && (
+                    {!isStatsLoading && !latest && (
                         <Card className="border-border/40">
                             <CardContent className="py-8 text-center text-muted-foreground">
                                 <Scale className="size-10 mx-auto mb-3 opacity-40" />
