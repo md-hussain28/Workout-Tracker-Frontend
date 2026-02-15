@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -131,39 +131,53 @@ function MePageLoadingScreen() {
     );
 }
 
-// ── Bio Setup Dialog ────────────────────────────────────────────────
+// ── Bio Setup Dialog (controlled by parent so it stays mounted and closes after save) ─────
 function BioSetupDialog({
     bio,
-    onSaved,
+    open,
+    onOpenChange,
 }: {
     bio: UserBio | null;
-    onSaved?: () => void;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
 }) {
     const queryClient = useQueryClient();
-    const [open, setOpen] = useState(false);
     const [height, setHeight] = useState(bio?.height_cm?.toString() ?? "");
     const [age, setAge] = useState(bio?.age?.toString() ?? "");
     const [sex, setSex] = useState<"male" | "female">(bio?.sex ?? "male");
     const [errors, setErrors] = useState<{ height_cm?: string; age?: string; sex?: string }>({});
+    const [submitError, setSubmitError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (open) {
+            setHeight(bio?.height_cm?.toString() ?? "");
+            setAge(bio?.age?.toString() ?? "");
+            setSex(bio?.sex ?? "male");
+            setErrors({});
+            setSubmitError(null);
+        }
+    }, [open, bio?.height_cm, bio?.age, bio?.sex]);
 
     const mutation = useMutation({
         mutationFn: (data: UserBioCreate) => api.body.upsertBio(data),
         onSuccess: (data) => {
-            // Set cache from PUT response so the Me tab shows analytics immediately.
-            // Do NOT invalidate ["body-bio"] here — a refetch can overwrite with null and show "Set up profile" again.
+            setSubmitError(null);
+            setErrors({});
+            onOpenChange(false);
             queryClient.setQueryData(["body-bio"], data);
             queryClient.invalidateQueries({ queryKey: ["body-latest"] });
             queryClient.invalidateQueries({ queryKey: ["body-history"] });
-            setOpen(false);
-            setErrors({});
-            onSaved?.();
         },
-        onError: () => setErrors({}),
+        onError: (err) => {
+            setErrors({});
+            setSubmitError(err instanceof Error ? err.message : "Failed to save. Please try again.");
+        },
     });
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         setErrors({});
+        setSubmitError(null);
         const h = height.trim() === "" ? NaN : parseFloat(height);
         const a = age.trim() === "" ? NaN : parseInt(age, 10);
         const result = userBioCreateSchema.safeParse({
@@ -184,19 +198,16 @@ function BioSetupDialog({
     };
 
     return (
-        <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setErrors({}); }}>
-            <DialogTrigger asChild>
-                {bio ? (
-                    <Button variant="ghost" size="sm" className="rounded-xl text-xs">
-                        Edit Profile
-                    </Button>
-                ) : (
-                    <Button className="w-full rounded-xl" size="lg">
-                        <Plus className="mr-2 size-4" />
-                        Set Up Profile
-                    </Button>
-                )}
-            </DialogTrigger>
+        <Dialog
+            open={open}
+            onOpenChange={(o) => {
+                onOpenChange(o);
+                if (!o) {
+                    setErrors({});
+                    setSubmitError(null);
+                }
+            }}
+        >
             <DialogContent className="rounded-2xl sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>{bio ? "Edit Profile" : "Set Up Your Profile"}</DialogTitle>
@@ -250,6 +261,11 @@ function BioSetupDialog({
                             <p className="text-xs text-destructive">{errors.sex}</p>
                         )}
                     </div>
+                    {submitError && (
+                        <p className="text-sm text-destructive rounded-xl bg-destructive/10 px-3 py-2">
+                            {submitError}
+                        </p>
+                    )}
                     <Button
                         type="submit"
                         className="w-full rounded-xl"
@@ -469,6 +485,7 @@ function LogBodyDialog() {
 // ── Main Me Page ────────────────────────────────────────────────────
 export default function MePage() {
     const [historyDays, setHistoryDays] = useState<number>(30);
+    const [bioDialogOpen, setBioDialogOpen] = useState(false);
 
     const { data: bio, isLoading: isBioLoading } = useQuery({
         queryKey: ["body-bio"],
@@ -568,7 +585,10 @@ export default function MePage() {
                             Enter your height, age, and sex to unlock BMR, body fat estimates,
                             and population percentile rankings.
                         </p>
-                        <BioSetupDialog bio={null} />
+                        <Button className="w-full rounded-xl" size="lg" onClick={() => setBioDialogOpen(true)}>
+                            <Plus className="mr-2 size-4" />
+                            Set Up Profile
+                        </Button>
                     </CardContent>
                 </Card>
             )}
@@ -590,7 +610,9 @@ export default function MePage() {
                                 <p className="text-xs text-muted-foreground">Body profile</p>
                             </div>
                         </div>
-                        <BioSetupDialog bio={bio} />
+                        <Button variant="ghost" size="sm" className="rounded-xl text-xs" onClick={() => setBioDialogOpen(true)}>
+                            Edit Profile
+                        </Button>
                     </div>
 
                     {/* Log Body CTA */}
@@ -776,6 +798,9 @@ export default function MePage() {
                     )}
                 </div>
             )}
+
+            {/* Bio dialog: always mounted and controlled so it closes reliably after save */}
+            <BioSetupDialog bio={bio ?? null} open={bioDialogOpen} onOpenChange={setBioDialogOpen} />
         </div>
     );
 }

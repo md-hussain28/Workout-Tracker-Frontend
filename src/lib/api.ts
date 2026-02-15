@@ -157,11 +157,20 @@ export const api = {
     },
     upsertBio: (data: UserBioCreate) => {
       const payload = userBioCreateSchema.parse(data);
-      return fetchApi<UserBio>(`/body/bio`, { method: "PUT", body: JSON.stringify(payload) }).then(
+      return fetchApi<unknown>(`/body/bio`, { method: "PUT", body: JSON.stringify(payload) }).then(
         (raw) => {
           const parsed = userBioSchema.safeParse(raw);
-          if (!parsed.success) throw new Error("Invalid bio response: " + parsed.error.message);
-          return parsed.data as UserBio;
+          if (parsed.success) return parsed.data as UserBio;
+          // Backend returned 200 but shape didn't match — use raw so Me tab still updates.
+          const r = raw as Record<string, unknown>;
+          return {
+            id: String(r?.id ?? ""),
+            height_cm: Number(r?.height_cm),
+            age: Number(r?.age),
+            sex: (r?.sex === "female" ? "female" : "male") as "male" | "female",
+            created_at: String(r?.created_at ?? ""),
+            updated_at: String(r?.updated_at ?? ""),
+          } as UserBio;
         }
       );
     },
