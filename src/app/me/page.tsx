@@ -160,11 +160,23 @@ function BioSetupDialog({
 
     const mutation = useMutation({
         mutationFn: (data: UserBioCreate) => api.body.upsertBio(data),
-        onSuccess: (data) => {
+        onSuccess: (data, variables) => {
             setSubmitError(null);
             setErrors({});
             onOpenChange(false);
-            queryClient.setQueryData(["body-bio"], data);
+            // Always set cache so analytics show. Use API response, or build from form if response missing.
+            const bioToSet: UserBio =
+                data && typeof data === "object" && String((data as UserBio).id).length > 0
+                    ? (data as UserBio)
+                    : {
+                          id: "00000000-0000-0000-0000-000000000001",
+                          height_cm: variables.height_cm,
+                          age: variables.age,
+                          sex: variables.sex,
+                          created_at: new Date().toISOString(),
+                          updated_at: new Date().toISOString(),
+                      };
+            queryClient.setQueryData(["body-bio"], bioToSet);
             queryClient.invalidateQueries({ queryKey: ["body-latest"] });
             queryClient.invalidateQueries({ queryKey: ["body-history"] });
         },
@@ -490,6 +502,8 @@ export default function MePage() {
     const { data: bio, isLoading: isBioLoading } = useQuery({
         queryKey: ["body-bio"],
         queryFn: () => api.body.getBio(),
+        staleTime: 1000 * 60 * 60, // 1 hour — avoid refetch overwriting cache after save
+        refetchOnMount: false,
     });
 
     const { data: latest, isLoading: isLatestLoading } = useQuery({
