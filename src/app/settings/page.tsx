@@ -8,13 +8,13 @@ import {
     Trash2,
     LayoutTemplate,
     Settings as SettingsIcon,
-    ChevronRight,
     Play,
     RotateCw,
     Wifi,
     Activity,
+    Clock,
 } from "lucide-react";
-import { api, type WorkoutTemplate } from "@/lib/api";
+import { api, API_BASE, type WorkoutTemplate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -73,6 +73,13 @@ function CreateTemplateDialog() {
                             className="rounded-xl"
                         />
                     </div>
+                    {createMutation.isError && (
+                        <p className="text-destructive text-sm">
+                            {createMutation.error instanceof Error
+                                ? createMutation.error.message
+                                : "Failed to create template"}
+                        </p>
+                    )}
                     <Button
                         type="submit"
                         className="w-full rounded-xl"
@@ -91,9 +98,11 @@ function TemplateCard({ template }: { template: WorkoutTemplate }) {
     const router = typeof window !== "undefined" ? require("next/navigation") : null;
     const queryClient = useQueryClient();
 
+    const [deleteError, setDeleteError] = useState<string | null>(null);
     const deleteMutation = useMutation({
         mutationFn: () => api.templates.delete(template.id),
         onMutate: async () => {
+            setDeleteError(null);
             await queryClient.cancelQueries({ queryKey: ["templates"] });
             const previous = queryClient.getQueryData<WorkoutTemplate[]>(["templates"]);
             queryClient.setQueryData<WorkoutTemplate[]>(
@@ -102,8 +111,9 @@ function TemplateCard({ template }: { template: WorkoutTemplate }) {
             );
             return { previous };
         },
-        onError: (_err, _v, context) => {
+        onError: (err, _v, context) => {
             if (context?.previous) queryClient.setQueryData(["templates"], context.previous);
+            setDeleteError(err instanceof Error ? err.message : "Failed to delete");
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: ["templates"] }),
     });
@@ -149,11 +159,15 @@ function TemplateCard({ template }: { template: WorkoutTemplate }) {
                             onClick={() => {
                                 if (confirm("Delete this template?")) deleteMutation.mutate();
                             }}
+                            disabled={deleteMutation.isPending}
                         >
                             <Trash2 className="size-4" />
                         </Button>
                     </div>
                 </div>
+                {deleteError && (
+                    <p className="text-destructive text-xs mt-2">{deleteError}</p>
+                )}
                 {template.exercises && template.exercises.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
                         {template.exercises
@@ -186,17 +200,20 @@ export default function SettingsPage() {
     const [pingResult, setPingResult] = useState<string | null>(null);
     const [isPinging, setIsPinging] = useState(false);
 
+    const [backendBuiltAt, setBackendBuiltAt] = useState<string | null>(null);
+
     const handlePing = async () => {
         setIsPinging(true);
         setPingResult(null);
-        const apiBase =
-            process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        setBackendBuiltAt(null);
         const start = performance.now();
         try {
-            const res = await fetch(`${apiBase}/health`);
+            const res = await fetch(`${API_BASE}/health`);
             const elapsed = Math.round(performance.now() - start);
             if (res.ok) {
                 setPingResult(`${elapsed}ms`);
+                const data = await res.json();
+                if (data?.built_at) setBackendBuiltAt(data.built_at);
             } else {
                 setPingResult(`Error ${res.status}`);
             }
@@ -206,6 +223,19 @@ export default function SettingsPage() {
             setIsPinging(false);
         }
     };
+
+    // Fetch health on mount to show backend last updated
+    const { data: healthData, isLoading: isHealthLoading } = useQuery({
+        queryKey: ["health"],
+        queryFn: async () => {
+            const res = await fetch(`${API_BASE}/health`);
+            if (!res.ok) throw new Error("Health check failed");
+            return res.json();
+        },
+        staleTime: 1000 * 60 * 5,
+        retry: 1,
+    });
+    const backendUpdated = healthData?.built_at ?? backendBuiltAt;
 
     // ── Clear cache ──
     const [cacheCleared, setCacheCleared] = useState(false);
@@ -364,6 +394,48 @@ export default function SettingsPage() {
                                 >
                                     Clear
                                 </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Last updated — Frontend & Backend */}
+                    <Card>
+                        <CardContent className="py-4">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="flex size-9 items-center justify-center rounded-xl bg-muted">
+                                    <Clock className="size-4 text-muted-foreground" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium">Last updated</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        When the app and API were last deployed
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-muted-foreground">Frontend</span>
+                                    <span className="font-mono text-xs">
+                                        {process.env.NEXT_PUBLIC_FRONTEND_UPDATED ?? "—"}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-muted-foreground">Backend</span>
+                                    <span className="font-mono text-xs">
+                                        {isHealthLoading && !backendBuiltAt
+                                            ? "…"
+                                            : backendUpdated
+                                                ? (() => {
+                                                    try {
+                                                        const d = new Date(backendUpdated);
+                                                        return isNaN(d.getTime()) ? backendUpdated : d.toLocaleString();
+                                                    } catch {
+                                                        return backendUpdated;
+                                                    }
+                                                })()
+                                                : "—"}
+                                    </span>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>

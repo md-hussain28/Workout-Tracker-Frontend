@@ -54,4 +54,8 @@ npm start
 - **Stats**: PRs this month, consistency calendar.
 
 All API calls go to `NEXT_PUBLIC_API_URL` (default `http://localhost:8000/api/v1`).
-# Workout-Tracker-Frontend
+
+## Optional env for Settings “Last updated”
+
+- **`NEXT_PUBLIC_FRONTEND_UPDATED`** — Shown in Settings → Last updated (e.g. build timestamp or deploy date). Set in your build/deploy (e.g. `NEXT_PUBLIC_FRONTEND_UPDATED=$(date -u +%Y-%m-%dT%H:%M:%SZ)`).
+- Backend “Last updated” comes from the API health response; set **`BACKEND_BUILT_AT`** (or **`RENDER_GIT_COMMIT_TIMESTAMP`** on Render) in the backend environment.

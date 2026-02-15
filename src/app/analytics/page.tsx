@@ -9,10 +9,9 @@ import {
     RepDensityChart,
     PlateauRadarChart,
 } from "@/components/AnalyticsCharts";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"; // New import
-import { Calendar, AlertCircle } from "lucide-react"; // Added AlertCircle
+import { Skeleton } from "@/components/ui/skeleton";
+import { Calendar } from "lucide-react";
 
 type TimeRange = "1m" | "3m" | "6m" | "1y" | "all";
 
@@ -50,9 +49,15 @@ export default function AnalyticsPage() {
     });
 
     const radarQuery = useQuery({
-        queryKey: ["analytics", "radar"], // Radar is always all-time vs recent
+        queryKey: ["analytics", "radar"],
         queryFn: () => api.analytics.plateauRadar(),
     });
+
+    const isLoading =
+        volumeQuery.isLoading ||
+        distQuery.isLoading ||
+        densityQuery.isLoading ||
+        radarQuery.isLoading;
 
     return (
         <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -81,25 +86,37 @@ export default function AnalyticsPage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Row 1: Volume Growth (Wide) */}
-                <div className="md:col-span-2">
-                    <VolumeGrowthChart data={volumeQuery.data || []} />
+            {isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="md:col-span-2">
+                        <Skeleton className="w-full h-[320px] rounded-xl" />
+                    </div>
+                    <div className="md:col-span-1">
+                        <Skeleton className="w-full h-[300px] rounded-xl" />
+                    </div>
+                    <div className="md:col-span-1">
+                        <Skeleton className="w-full h-[300px] rounded-xl" />
+                    </div>
+                    <div className="md:col-span-2">
+                        <Skeleton className="w-full h-[300px] rounded-xl" />
+                    </div>
                 </div>
-
-                {/* Row 2: Split & Density */}
-                <div className="md:col-span-1">
-                    <MuscleSplitChart data={distQuery.data || []} />
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="md:col-span-2">
+                        <VolumeGrowthChart data={volumeQuery.data || []} />
+                    </div>
+                    <div className="md:col-span-1">
+                        <MuscleSplitChart data={distQuery.data || []} />
+                    </div>
+                    <div className="md:col-span-1">
+                        <RepDensityChart data={densityQuery.data || []} />
+                    </div>
+                    <div className="md:col-span-2">
+                        <PlateauRadarChart data={radarQuery.data || []} />
+                    </div>
                 </div>
-                <div className="md:col-span-1">
-                    <RepDensityChart data={densityQuery.data || []} />
-                </div>
-
-                {/* Row 3: Radar (Wide) */}
-                <div className="md:col-span-2">
-                    <PlateauRadarChart data={radarQuery.data || []} />
-                </div>
-            </div>
+            )}
         </div>
     );
 }

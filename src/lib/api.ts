@@ -6,7 +6,8 @@ import {
   userBioSchema,
 } from "./schemas/body";
 
-const API_BASE =
+/** Base URL for API (includes /api/v1). Use for health ping and last-updated checks. */
+export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
   (typeof process.env.NEXT_PUBLIC_VERCEL_URL === "string"
     ? "https://workout-tracker-backend-ahka.onrender.com/api/v1"

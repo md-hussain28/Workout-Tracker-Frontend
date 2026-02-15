@@ -341,6 +341,12 @@ function LogBodyDialog() {
     const [weight, setWeight] = useState("");
     const [measurements, setMeasurements] = useState<Record<string, string>>({});
 
+    const { data: latestLog } = useQuery({
+        queryKey: ["body-latest"],
+        queryFn: () => api.body.getLatest(),
+        enabled: open,
+    });
+
     const mutation = useMutation({
         mutationFn: (data: BodyLogCreate) => api.body.createLog(data),
         onMutate: async (newLog) => {
@@ -359,10 +365,11 @@ function LogBodyDialog() {
             });
             return { prevLatest };
         },
-        onError: (_err, _v, context) => {
+        onError: (err, _v, context) => {
             if (context?.prevLatest !== undefined) {
                 queryClient.setQueryData(["body-latest"], context.prevLatest);
             }
+            setLogError(err instanceof Error ? err.message : String(err));
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ["body-latest"] });
@@ -418,7 +425,7 @@ function LogBodyDialog() {
     }, []);
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(open) => { setOpen(open); if (!open) setLogError(null); }}>
             <DialogTrigger asChild>
                 <Button
                     className="w-full rounded-2xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30"
@@ -466,6 +473,11 @@ function LogBodyDialog() {
                     </TabsContent>
 
                     <TabsContent value="measurements" className="space-y-4">
+                        {!latestLog && (
+                            <p className="text-sm text-muted-foreground rounded-xl bg-muted/50 px-3 py-2">
+                                No body log yet? Log your weight on the <strong>Weight</strong> tab first, then you can add measurements here.
+                            </p>
+                        )}
                         <div className="rounded-xl border border-border/40 bg-card">
                             <Accordion type="single" collapsible className="w-full">
                                 {Object.entries(grouped).map(([group, keys], index) => (
