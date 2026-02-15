@@ -47,7 +47,7 @@ export default function NewWorkoutPage() {
     }
   }
 
-  async function handleStartFromTemplate(templateId: number) {
+  async function handleStartFromTemplate(templateId: string) {
     setLoading(true);
     setError(null);
     try {

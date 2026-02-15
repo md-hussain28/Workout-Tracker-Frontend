@@ -59,9 +59,9 @@ export default function NewExercisePage() {
         description: description.trim() || null,
         unit,
         measurement_mode: measurementMode,
-        primary_muscle_group_id: parseInt(primaryId, 10),
-        secondary_muscle_group_id: secondaryId && secondaryId !== "none" ? parseInt(secondaryId, 10) : null,
-        tertiary_muscle_group_id: tertiaryId && tertiaryId !== "none" ? parseInt(tertiaryId, 10) : null,
+        primary_muscle_group_id: primaryId,
+        secondary_muscle_group_id: secondaryId && secondaryId !== "none" ? secondaryId : null,
+        tertiary_muscle_group_id: tertiaryId && tertiaryId !== "none" ? tertiaryId : null,
       });
       queryClient.invalidateQueries({ queryKey: ["exercises"] });
       router.push("/exercises");

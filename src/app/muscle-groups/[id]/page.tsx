@@ -64,7 +64,7 @@ function EditMuscleGroupDialog({
     currentColor,
     trigger,
 }: {
-    id: number;
+    id: string;
     currentName: string;
     currentColor?: string | null;
     trigger: React.ReactNode;
@@ -189,12 +189,12 @@ const COLORS = ["#3b82f6", "#8b5cf6", "#ec4899"]; // blue-500, violet-500, pink-
 export default function MuscleGroupDetailPage() {
     const params = useParams<{ id: string }>();
     const router = useRouter();
-    const id = parseInt(params.id, 10);
+    const id = params.id;
 
     const { data: stats, isLoading } = useQuery({
         queryKey: ["muscleGroupStats", id],
         queryFn: () => api.muscleGroups.getStats(id),
-        enabled: !isNaN(id),
+        enabled: !!id,
     });
 
     if (isLoading) {

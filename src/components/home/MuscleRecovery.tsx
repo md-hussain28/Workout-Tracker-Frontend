@@ -70,7 +70,7 @@ export function MuscleRecovery() {
         if (muscleGroups.length === 0) return [];
 
         // Build a map of muscle group id → last trained date
-        const lastTrained = new Map<number, string>();
+        const lastTrained = new Map<string, string>();
         const workouts = workoutQueries.data ?? [];
 
         for (const workout of workouts) {
@@ -83,7 +83,7 @@ export function MuscleRecovery() {
                     exercise.primary_muscle_group_id,
                     exercise.secondary_muscle_group_id,
                     exercise.tertiary_muscle_group_id,
-                ].filter(Boolean) as number[];
+                ].filter(Boolean) as string[];
 
                 for (const mgId of muscleIds) {
                     const existing = lastTrained.get(mgId);

@@ -179,7 +179,7 @@ export default function ExercisesPage() {
 
   // Exercises per muscle group (for display counts)
   const exercisesByMuscle = useMemo(() => {
-    const map = new Map<number, Exercise[]>();
+    const map = new Map<string, Exercise[]>();
     for (const ex of exercises) {
       if (ex.primary_muscle_group_id) {
         const arr = map.get(ex.primary_muscle_group_id) ?? [];

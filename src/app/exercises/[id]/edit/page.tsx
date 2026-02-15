@@ -29,12 +29,12 @@ export default function ExerciseEditPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const exerciseId = parseInt(params.id, 10);
+  const exerciseId = params.id;
 
   const { data: exercise, isLoading: exLoading } = useQuery({
     queryKey: ["exercise", exerciseId],
     queryFn: () => api.exercises.get(exerciseId),
-    enabled: !isNaN(exerciseId),
+    enabled: !!exerciseId,
   });
 
   const { data: muscleGroups = [] } = useQuery({
@@ -52,7 +52,7 @@ export default function ExerciseEditPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (isNaN(exerciseId)) return notFound();
+  if (!exerciseId) return notFound();
 
   if (exLoading) {
     return (
@@ -88,9 +88,9 @@ export default function ExerciseEditPage() {
         description: currentDescription.trim() || null,
         unit: currentUnit,
         measurement_mode: currentMode,
-        primary_muscle_group_id: currentPrimary ? parseInt(currentPrimary, 10) : null,
-        secondary_muscle_group_id: currentSecondary && currentSecondary !== "none" ? parseInt(currentSecondary, 10) : null,
-        tertiary_muscle_group_id: currentTertiary && currentTertiary !== "none" ? parseInt(currentTertiary, 10) : null,
+        primary_muscle_group_id: currentPrimary || null,
+        secondary_muscle_group_id: currentSecondary && currentSecondary !== "none" ? currentSecondary : null,
+        tertiary_muscle_group_id: currentTertiary && currentTertiary !== "none" ? currentTertiary : null,
       });
       queryClient.invalidateQueries({ queryKey: ["exercise", exerciseId] });
       queryClient.invalidateQueries({ queryKey: ["exercises"] });

@@ -26,7 +26,7 @@ export function QuickStartCarousel({ activeWorkout }: QuickStartCarouselProps) {
         } catch { /* noop */ }
     }
 
-    async function handleStartFromTemplate(templateId: number) {
+    async function handleStartFromTemplate(templateId: string) {
         try {
             const result = await api.templates.instantiate(templateId);
             router.push(`/workouts/${result.workout_id}`);
@@ -49,8 +49,8 @@ export function QuickStartCarousel({ activeWorkout }: QuickStartCarouselProps) {
                         }
                     }}
                     className={`snap-start flex flex-col items-center justify-center gap-2 w-[160px] h-[120px] rounded-2xl transition-all shrink-0 ${activeWorkout
-                            ? "bg-primary text-primary-foreground animate-pulse-glow"
-                            : "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground"
+                        ? "bg-primary text-primary-foreground animate-pulse-glow"
+                        : "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground"
                         }`}
                 >
                     {activeWorkout ? (
