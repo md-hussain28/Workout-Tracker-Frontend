@@ -149,9 +149,11 @@ function BioSetupDialog({
     const mutation = useMutation({
         mutationFn: (data: UserBioCreate) => api.body.upsertBio(data),
         onSuccess: (data) => {
-            // Update cache immediately so body analytics show even if GET /body/bio returns null
+            // Set cache from PUT response so the Me tab shows analytics immediately.
+            // Do NOT invalidate ["body-bio"] here — a refetch can overwrite with null and show "Set up profile" again.
             queryClient.setQueryData(["body-bio"], data);
-            queryClient.invalidateQueries({ queryKey: ["body-bio"] });
+            queryClient.invalidateQueries({ queryKey: ["body-latest"] });
+            queryClient.invalidateQueries({ queryKey: ["body-history"] });
             setOpen(false);
             setErrors({});
             onSaved?.();
