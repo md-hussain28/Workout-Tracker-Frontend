@@ -1,3 +1,11 @@
+import {
+  bodyLogCreateSchema,
+  bodyLogUpdateSchema,
+  bodyLogSchema,
+  userBioCreateSchema,
+  userBioSchema,
+} from "./schemas/body";
+
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
   (typeof process.env.NEXT_PUBLIC_VERCEL_URL === "string"
@@ -140,16 +148,60 @@ export const api = {
   },
 
   body: {
-    getBio: () => fetchApi<UserBio | null>(`/body/bio`),
-    upsertBio: (data: UserBioCreate) =>
-      fetchApi<UserBio>(`/body/bio`, { method: "PUT", body: JSON.stringify(data) }),
-    createLog: (data: BodyLogCreate) =>
-      fetchApi<BodyLog>(`/body/log`, { method: "POST", body: JSON.stringify(data) }),
+    getBio: async () => {
+      const raw = await fetchApi<UserBio | null>(`/body/bio`);
+      if (raw == null) return null;
+      const parsed = userBioSchema.safeParse(raw);
+      if (!parsed.success) throw new Error("Invalid bio response: " + parsed.error.message);
+      return parsed.data as UserBio;
+    },
+    upsertBio: (data: UserBioCreate) => {
+      const payload = userBioCreateSchema.parse(data);
+      return fetchApi<UserBio>(`/body/bio`, { method: "PUT", body: JSON.stringify(payload) }).then(
+        (raw) => {
+          const parsed = userBioSchema.safeParse(raw);
+          if (!parsed.success) throw new Error("Invalid bio response: " + parsed.error.message);
+          return parsed.data as UserBio;
+        }
+      );
+    },
+    createLog: (data: BodyLogCreate) => {
+      const payload = bodyLogCreateSchema.parse(data);
+      return fetchApi<BodyLog>(`/body/log`, { method: "POST", body: JSON.stringify(payload) }).then(
+        (raw) => {
+          const parsed = bodyLogSchema.safeParse(raw);
+          if (!parsed.success) throw new Error("Invalid body log response: " + parsed.error.message);
+          return parsed.data as BodyLog;
+        }
+      );
+    },
     listLogs: (days?: number) =>
-      fetchApi<BodyLog[]>(`/body/log`, { params: days != null ? { days } : undefined }),
-    getLatest: () => fetchApi<BodyLog | null>(`/body/log/latest`),
-    updateLog: (id: string, data: BodyLogUpdate) =>
-      fetchApi<BodyLog>(`/body/log/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+      fetchApi<BodyLog[]>(`/body/log`, { params: days != null ? { days } : undefined }).then(
+        (list) =>
+          list.map((raw) => {
+            const parsed = bodyLogSchema.safeParse(raw);
+            if (!parsed.success) throw new Error("Invalid body log in list: " + parsed.error.message);
+            return parsed.data as BodyLog;
+          })
+      ),
+    getLatest: async () => {
+      const raw = await fetchApi<BodyLog | null>(`/body/log/latest`);
+      if (raw == null) return null;
+      const parsed = bodyLogSchema.safeParse(raw);
+      if (!parsed.success) throw new Error("Invalid body log response: " + parsed.error.message);
+      return parsed.data as BodyLog;
+    },
+    updateLog: (id: string, data: BodyLogUpdate) => {
+      const payload = bodyLogUpdateSchema.parse(data);
+      return fetchApi<BodyLog>(`/body/log/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }).then((raw) => {
+        const parsed = bodyLogSchema.safeParse(raw);
+        if (!parsed.success) throw new Error("Invalid body log response: " + parsed.error.message);
+        return parsed.data as BodyLog;
+      });
+    },
     deleteLog: (id: string) =>
       fetchApi<void>(`/body/log/${id}`, { method: "DELETE" }),
   },

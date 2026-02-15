@@ -21,6 +21,7 @@ import {
     type BodyLogUpdate,
     type Measurements,
 } from "@/lib/api";
+import { bodyLogUpdateSchema } from "@/lib/schemas/body";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -127,29 +128,32 @@ function EditableLogForm({ log, onSuccess }: { log: BodyLog; onSuccess: () => vo
 
     const handleSave = () => {
         const w = parseFloat(weight);
-        if (isNaN(w)) {
-            alert("Valid weight is required");
-            return;
-        }
-
         const meas: Measurements = {};
         Object.entries(measurements).forEach(([k, v]) => {
             const val = parseFloat(v);
             if (!isNaN(val)) meas[k as keyof Measurements] = val;
         });
-
-        // Convert local datetime back to UTC ISO string
         const dateObj = new Date(entryDate);
         const utcDate = dateObj.toISOString();
-
         const bf = parseFloat(bodyFat);
 
-        mutation.mutate({
-            weight_kg: w,
+        const payload = {
+            weight_kg: isNaN(w) ? undefined : w,
             body_fat_pct: isNaN(bf) ? null : bf,
-            measurements: meas,
+            measurements: Object.keys(meas).length ? meas : undefined,
             created_at: utcDate,
-        });
+        };
+        const result = bodyLogUpdateSchema.safeParse(payload);
+        if (!result.success) {
+            const msg = result.error.issues.map((i) => i.message).join(" ");
+            alert(msg || "Invalid values. Weight 20–400 kg, body fat 2–60%.");
+            return;
+        }
+        const toSend: BodyLogUpdate = {
+            ...result.data,
+            created_at: result.data.created_at ?? utcDate,
+        };
+        mutation.mutate(toSend);
     };
 
     return (

@@ -30,6 +30,7 @@ import {
     type UserBioCreate,
     type Measurements,
 } from "@/lib/api";
+import { userBioCreateSchema, bodyLogCreateSchema } from "@/lib/schemas/body";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -120,18 +121,43 @@ function BioSetupDialog({
     const [height, setHeight] = useState(bio?.height_cm?.toString() ?? "");
     const [age, setAge] = useState(bio?.age?.toString() ?? "");
     const [sex, setSex] = useState<"male" | "female">(bio?.sex ?? "male");
+    const [errors, setErrors] = useState<{ height_cm?: string; age?: string; sex?: string }>({});
 
     const mutation = useMutation({
         mutationFn: (data: UserBioCreate) => api.body.upsertBio(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["body-bio"] });
             setOpen(false);
+            setErrors({});
             onSaved?.();
         },
+        onError: () => setErrors({}),
     });
 
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setErrors({});
+        const h = height.trim() === "" ? NaN : parseFloat(height);
+        const a = age.trim() === "" ? NaN : parseInt(age, 10);
+        const result = userBioCreateSchema.safeParse({
+            height_cm: Number.isNaN(h) ? undefined : h,
+            age: Number.isNaN(a) ? undefined : a,
+            sex,
+        });
+        if (!result.success) {
+            const fieldErrors: { height_cm?: string; age?: string; sex?: string } = {};
+            result.error.issues.forEach((issue) => {
+                const path = issue.path[0] as "height_cm" | "age" | "sex";
+                if (path && !fieldErrors[path]) fieldErrors[path] = issue.message;
+            });
+            setErrors(fieldErrors);
+            return;
+        }
+        mutation.mutate(result.data);
+    };
+
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setErrors({}); }}>
             <DialogTrigger asChild>
                 {bio ? (
                     <Button variant="ghost" size="sm" className="rounded-xl text-xs">
@@ -148,17 +174,7 @@ function BioSetupDialog({
                 <DialogHeader>
                     <DialogTitle>{bio ? "Edit Profile" : "Set Up Your Profile"}</DialogTitle>
                 </DialogHeader>
-                <form
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        const h = parseFloat(height);
-                        const a = parseInt(age, 10);
-                        if (h > 50 && a >= 10) {
-                            mutation.mutate({ height_cm: h, age: a, sex });
-                        }
-                    }}
-                    className="space-y-4"
-                >
+                <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-2">
                             <Label htmlFor="bio-height">Height (cm)</Label>
@@ -168,9 +184,13 @@ function BioSetupDialog({
                                 step="0.1"
                                 placeholder="175"
                                 value={height}
-                                onChange={(e) => setHeight(e.target.value)}
+                                onChange={(e) => { setHeight(e.target.value); setErrors((prev) => ({ ...prev, height_cm: undefined })); }}
                                 className="rounded-xl"
+                                aria-invalid={!!errors.height_cm}
                             />
+                            {errors.height_cm && (
+                                <p className="text-xs text-destructive">{errors.height_cm}</p>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="bio-age">Age</Label>
@@ -179,9 +199,13 @@ function BioSetupDialog({
                                 type="number"
                                 placeholder="25"
                                 value={age}
-                                onChange={(e) => setAge(e.target.value)}
+                                onChange={(e) => { setAge(e.target.value); setErrors((prev) => ({ ...prev, age: undefined })); }}
                                 className="rounded-xl"
+                                aria-invalid={!!errors.age}
                             />
+                            {errors.age && (
+                                <p className="text-xs text-destructive">{errors.age}</p>
+                            )}
                         </div>
                     </div>
                     <div className="space-y-2">
@@ -195,6 +219,9 @@ function BioSetupDialog({
                                 <SelectItem value="female">Female</SelectItem>
                             </SelectContent>
                         </Select>
+                        {errors.sex && (
+                            <p className="text-xs text-destructive">{errors.sex}</p>
+                        )}
                     </div>
                     <Button
                         type="submit"
@@ -252,21 +279,37 @@ function LogBodyDialog() {
         },
     });
 
+    const [logError, setLogError] = useState<string | null>(null);
+
     const handleSaveWeight = () => {
+        setLogError(null);
         const w = parseFloat(weight);
-        if (!w || w < 20) return;
-        mutation.mutate({ weight_kg: w });
+        const result = bodyLogCreateSchema.safeParse({ weight_kg: w });
+        if (!result.success) {
+            setLogError(result.error.issues.map((i) => i.message).join(" ") || "Invalid weight (20–400 kg).");
+            return;
+        }
+        if (result.data.weight_kg == null) return;
+        mutation.mutate({ weight_kg: result.data.weight_kg });
     };
 
     const handleSaveMeasurements = () => {
+        setLogError(null);
         const cleanMeasurements: Record<string, number> = {};
         Object.entries(measurements).forEach(([k, v]) => {
             const num = parseFloat(v);
             if (num > 0) cleanMeasurements[k] = num;
         });
-
-        if (Object.keys(cleanMeasurements).length === 0) return;
-        mutation.mutate({ measurements: cleanMeasurements });
+        if (Object.keys(cleanMeasurements).length === 0) {
+            setLogError("Enter at least one measurement.");
+            return;
+        }
+        const result = bodyLogCreateSchema.safeParse({ measurements: cleanMeasurements });
+        if (!result.success) {
+            setLogError(result.error.issues.map((i) => i.message).join(" ") || "Invalid measurements.");
+            return;
+        }
+        mutation.mutate({ measurements: result.data.measurements ?? undefined });
     };
 
     const grouped = useMemo(() => {
@@ -294,13 +337,16 @@ function LogBodyDialog() {
                     <DialogTitle>Log Body Stats</DialogTitle>
                 </DialogHeader>
 
-                <Tabs defaultValue="weight" value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <Tabs defaultValue="weight" value={activeTab} onValueChange={(v) => { setActiveTab(v); setLogError(null); }} className="w-full">
                     <TabsList className="grid w-full grid-cols-2 mb-4">
                         <TabsTrigger value="weight">Weight</TabsTrigger>
                         <TabsTrigger value="measurements">Measurements</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="weight" className="space-y-4">
+                        {logError && (
+                            <p className="text-sm text-destructive">{logError}</p>
+                        )}
                         <div className="space-y-2">
                             <Label htmlFor="log-weight">Current Weight (kg)</Label>
                             <Input
@@ -309,7 +355,7 @@ function LogBodyDialog() {
                                 step="0.1"
                                 placeholder="e.g. 80.5"
                                 value={weight}
-                                onChange={(e) => setWeight(e.target.value)}
+                                onChange={(e) => { setWeight(e.target.value); setLogError(null); }}
                                 className="rounded-xl text-lg font-semibold h-12"
                                 autoFocus
                             />
@@ -372,6 +418,9 @@ function LogBodyDialog() {
                                 ))}
                             </Accordion>
                         </div>
+                        {logError && (
+                            <p className="text-sm text-destructive">{logError}</p>
+                        )}
                         <Button
                             onClick={handleSaveMeasurements}
                             className="w-full rounded-xl"
