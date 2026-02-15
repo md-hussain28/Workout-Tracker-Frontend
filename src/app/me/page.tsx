@@ -71,6 +71,46 @@ const PercentileRadarChart = dynamic(
     { ssr: false }
 );
 
+const BODY_BIO_STORAGE_KEY = "workout-tracker-body-bio";
+
+const DEFAULT_BIO_ID = "00000000-0000-0000-0000-000000000001";
+
+/** Read and validate bio from localStorage. Returns a full UserBio or null. */
+function getStoredBio(): UserBio | null {
+    if (typeof window === "undefined") return null;
+    try {
+        const s = localStorage.getItem(BODY_BIO_STORAGE_KEY);
+        if (!s) return null;
+        const parsed = JSON.parse(s) as unknown;
+        if (!parsed || typeof parsed !== "object") return null;
+        const p = parsed as Record<string, unknown>;
+        const id = typeof p.id === "string" ? p.id : DEFAULT_BIO_ID;
+        const height_cm = typeof p.height_cm === "number" ? p.height_cm : 0;
+        const age = typeof p.age === "number" ? p.age : 0;
+        const sex = p.sex === "female" ? "female" : "male";
+        if (height_cm < 50 || age < 10) return null;
+        return {
+            id,
+            height_cm,
+            age,
+            sex,
+            created_at: typeof p.created_at === "string" ? p.created_at : new Date(0).toISOString(),
+            updated_at: typeof p.updated_at === "string" ? p.updated_at : new Date(0).toISOString(),
+        } as UserBio;
+    } catch {
+        return null;
+    }
+}
+
+function setStoredBio(bio: UserBio): void {
+    if (typeof window === "undefined") return;
+    try {
+        localStorage.setItem(BODY_BIO_STORAGE_KEY, JSON.stringify(bio));
+    } catch {
+        /* ignore */
+    }
+}
+
 // ── Circumference key metadata ──────────────────────────────────────
 const CIRCUMFERENCE_KEYS: {
     key: keyof Measurements;
@@ -169,13 +209,14 @@ function BioSetupDialog({
                 data && typeof data === "object" && String((data as UserBio).id).length > 0
                     ? (data as UserBio)
                     : {
-                          id: "00000000-0000-0000-0000-000000000001",
+                          id: DEFAULT_BIO_ID,
                           height_cm: variables.height_cm,
                           age: variables.age,
                           sex: variables.sex,
                           created_at: new Date().toISOString(),
                           updated_at: new Date().toISOString(),
                       };
+            setStoredBio(bioToSet);
             queryClient.setQueryData(["body-bio"], bioToSet);
             queryClient.invalidateQueries({ queryKey: ["body-latest"] });
             queryClient.invalidateQueries({ queryKey: ["body-history"] });
@@ -501,8 +542,20 @@ export default function MePage() {
 
     const { data: bio, isLoading: isBioLoading } = useQuery({
         queryKey: ["body-bio"],
-        queryFn: () => api.body.getBio(),
-        staleTime: 1000 * 60 * 60, // 1 hour — avoid refetch overwriting cache after save
+        queryFn: async () => {
+            try {
+                const fromApi = await api.body.getBio();
+                if (fromApi?.id) {
+                    setStoredBio(fromApi);
+                    return fromApi;
+                }
+            } catch {
+                /* API failed — use localStorage so profile persists after refresh */
+            }
+            return getStoredBio();
+        },
+        initialData: () => getStoredBio() ?? undefined,
+        staleTime: 1000 * 60 * 60,
         refetchOnMount: false,
     });
 

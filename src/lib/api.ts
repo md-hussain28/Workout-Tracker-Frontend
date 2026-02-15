@@ -148,12 +148,12 @@ export const api = {
   },
 
   body: {
-    getBio: async () => {
+    getBio: async (): Promise<UserBio | null> => {
       const raw = await fetchApi<UserBio | null>(`/body/bio`);
       if (raw == null) return null;
       const parsed = userBioSchema.safeParse(raw);
-      if (!parsed.success) throw new Error("Invalid bio response: " + parsed.error.message);
-      return parsed.data as UserBio;
+      if (parsed.success) return parsed.data as UserBio;
+      return null;
     },
     upsertBio: (data: UserBioCreate) => {
       const payload = userBioCreateSchema.parse(data);
