@@ -35,9 +35,12 @@ export const bodyLogUpdateSchema = z.object({
   created_at: z.string().optional().nullable(),
 });
 
+/** Accepts any UUID-shaped string (8-4-4-4-12 hex). Backend uses sentinel IDs like 00000000-0000-0000-0000-000000000001 which fail z.string().uuid() (RFC 4122 only). */
+const uuidLike = z.string().regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/);
+
 /** Response: user bio (GET /body/bio or PUT /body/bio). */
 export const userBioSchema = z.object({
-  id: z.string().uuid(),
+  id: uuidLike,
   height_cm: z.number(),
   age: z.number().int(),
   sex: z.enum(["male", "female"]),
@@ -47,8 +50,8 @@ export const userBioSchema = z.object({
 
 /** Response: single body log. */
 export const bodyLogSchema = z.object({
-  id: z.string().uuid(),
-  user_id: z.string().uuid(),
+  id: uuidLike,
+  user_id: uuidLike,
   weight_kg: z.number(),
   body_fat_pct: z.number().nullable(),
   measurements: z.record(z.string(), z.number()).nullable(),
