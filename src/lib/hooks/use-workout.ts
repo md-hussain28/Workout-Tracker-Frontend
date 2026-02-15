@@ -160,9 +160,10 @@ export function useEndWorkout(workoutId: string) {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: () =>
+        mutationFn: (intensity?: "light" | "moderate" | "vigorous") =>
             api.workouts.update(workoutId, {
                 ended_at: new Date().toISOString(),
+                ...(intensity && { intensity }),
             }),
         onMutate: async () => {
             await queryClient.cancelQueries({ queryKey: ["workout", workoutId] });

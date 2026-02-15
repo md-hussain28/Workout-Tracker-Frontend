@@ -270,6 +270,7 @@ export default function WorkoutDetailPage() {
   const [exercisePickerOpen, setExercisePickerOpen] = useState(false);
   const [editingDate, setEditingDate] = useState(false);
   const [historyExercise, setHistoryExercise] = useState<{ id: string; name: string } | null>(null);
+  const [endDialogOpen, setEndDialogOpen] = useState(false);
 
   const { data: workout, isLoading } = useWorkout(workoutId);
   const endWorkoutMutation = useEndWorkout(workoutId);
@@ -305,6 +306,10 @@ export default function WorkoutDetailPage() {
   }
 
   const isActive = !workout.ended_at;
+  const endWorkoutWithIntensity = (intensity?: "light" | "moderate" | "vigorous") => {
+    endWorkoutMutation.mutate(intensity);
+    setEndDialogOpen(false);
+  };
 
   // Group sets by exercise
   const groupedSets = (workout.sets ?? []).reduce<
@@ -415,7 +420,7 @@ export default function WorkoutDetailPage() {
             variant="outline"
             size="lg"
             className="rounded-xl py-5"
-            onClick={() => endWorkoutMutation.mutate()}
+            onClick={() => setEndDialogOpen(true)}
             disabled={endWorkoutMutation.isPending}
           >
             <StopCircle className="mr-2 size-5" />
@@ -423,6 +428,30 @@ export default function WorkoutDetailPage() {
           </Button>
         </div>
       )}
+
+      {/* End workout: optional intensity */}
+      <Dialog open={endDialogOpen} onOpenChange={setEndDialogOpen}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle>End workout</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Optional: How intense was this workout? (Improves calorie estimate)</p>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Button size="sm" variant="outline" onClick={() => endWorkoutWithIntensity("light")} disabled={endWorkoutMutation.isPending}>
+              Light
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => endWorkoutWithIntensity("moderate")} disabled={endWorkoutMutation.isPending}>
+              Moderate
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => endWorkoutWithIntensity("vigorous")} disabled={endWorkoutMutation.isPending}>
+              Vigorous
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => endWorkoutWithIntensity()} disabled={endWorkoutMutation.isPending}>
+              Skip
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Exercise Cards */}
       {groupedSets.length === 0 && (
@@ -491,6 +520,11 @@ export default function WorkoutDetailPage() {
               {workout.sets.length} set{workout.sets.length !== 1 ? "s" : ""}
             </span>
           </div>
+          {workout.estimated_calories != null && (
+            <p className="text-sm text-muted-foreground">
+              Est. calories burned: ~{Math.round(workout.estimated_calories)} kcal
+            </p>
+          )}
           {groupedSets.length > 0 && (
             <SaveAsTemplateButton workoutId={workout.id} />
           )}

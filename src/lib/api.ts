@@ -49,7 +49,7 @@ export const api = {
     get: (id: string) => fetchApi<WorkoutWithSets>(`/workouts/${id}`),
     create: (body: { notes?: string }) =>
       fetchApi<Workout>(`/workouts`, { method: "POST", body: JSON.stringify(body) }),
-    update: (id: string, body: { started_at?: string; ended_at?: string; duration_seconds?: number; notes?: string }) =>
+    update: (id: string, body: { started_at?: string; ended_at?: string; duration_seconds?: number; notes?: string; intensity?: "light" | "moderate" | "vigorous" }) =>
       fetchApi<Workout>(`/workouts/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     delete: (id: string) =>
       fetchApi<void>(`/workouts/${id}`, { method: "DELETE" }),
@@ -146,6 +146,14 @@ export const api = {
     plateauRadar: () => fetchApi<any[]>(`/analytics/plateau-radar`),
     recovery: () =>
       fetchApi<RecoveryResponse>(`/analytics/recovery`),
+    caloriesHistory: (from_date?: string, to_date?: string) =>
+      fetchApi<CaloriesHistoryEntry[]>(`/analytics/calories-history`, {
+        params: { from_date, to_date },
+      }),
+    caloriesSummary: (from_date?: string, to_date?: string) =>
+      fetchApi<CaloriesSummaryResponse>(`/analytics/calories-summary`, {
+        params: { from_date, to_date },
+      }),
   },
 
   body: {
@@ -357,10 +365,12 @@ export interface Workout {
   ended_at: string | null;
   duration_seconds: number | null;
   notes: string | null;
+  intensity: string | null;
   sets?: WorkoutSet[];
 }
 
 export interface WorkoutWithSets extends Workout {
+  estimated_calories: number | null;
   sets: (WorkoutSet & { exercise?: Exercise })[];
 }
 
@@ -436,6 +446,17 @@ export interface RecoveryMuscle {
 
 export interface RecoveryResponse {
   muscles: RecoveryMuscle[];
+}
+
+export interface CaloriesHistoryEntry {
+  date: string;
+  calories: number;
+}
+
+export interface CaloriesSummaryResponse {
+  total_calories: number;
+  workout_count: number;
+  daily_average: number;
 }
 
 // ── Body Analytics Types ──

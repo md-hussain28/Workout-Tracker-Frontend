@@ -20,7 +20,7 @@ import {
     Radar,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { TrendingUp, PieChart as PieIcon, BarChart as BarIcon, Activity } from "lucide-react";
+import { TrendingUp, PieChart as PieIcon, BarChart as BarIcon, Activity, Flame } from "lucide-react";
 
 // --- Types ---
 interface VolumeHistoryData {
@@ -43,6 +43,17 @@ interface RadarData {
     A: number;
     B: number;
     fullMark: number;
+}
+
+export interface CaloriesHistoryEntry {
+    date: string;
+    calories: number;
+}
+
+export interface CaloriesSummaryData {
+    total_calories: number;
+    workout_count: number;
+    daily_average: number;
 }
 
 // --- Colors ---
@@ -178,6 +189,91 @@ export function RepDensityChart({ data }: { data: DensityData[] }) {
                         ))}
                     </BarChart>
                 </ResponsiveContainer>
+            </CardContent>
+        </Card>
+    );
+}
+
+export function CaloriesBurnedChart({ data, emptyMessage }: { data: CaloriesHistoryEntry[]; emptyMessage?: string }) {
+    if (!data || data.length === 0) {
+        return (
+            <Card className="col-span-1 lg:col-span-2">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Flame className="size-5 text-primary" />
+                        Calories Burned
+                    </CardTitle>
+                    <CardDescription>
+                        {emptyMessage ?? "Estimated calories per workout day (MET-based). Log weight in Me to see estimates."}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground border border-dashed rounded-xl">
+                        <Flame className="size-10 mb-2 opacity-20" />
+                        <p className="text-sm">{emptyMessage ?? "No calorie data in this range. Log weight in Me to see estimates."}</p>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    return (
+        <Card className="col-span-1 lg:col-span-2">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Flame className="size-5 text-primary" />
+                    Calories Burned
+                </CardTitle>
+                <CardDescription>Estimated calories per day (MET-based formula).</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                        <XAxis
+                            dataKey="date"
+                            tick={{ fontSize: 12 }}
+                            tickFormatter={(v) => new Date(v).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        />
+                        <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                        <Tooltip
+                            contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+                            labelFormatter={(v) => new Date(v).toLocaleDateString()}
+                            formatter={(value: number) => [`${value} kcal`, "Calories"]}
+                        />
+                        <Bar dataKey="calories" fill="hsl(25, 80%, 55%)" name="Calories" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                </ResponsiveContainer>
+            </CardContent>
+        </Card>
+    );
+}
+
+export function CaloriesSummaryCard({ data }: { data: CaloriesSummaryData | null | undefined }) {
+    if (data == null) return null;
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Flame className="size-5 text-primary" />
+                    Calories Summary
+                </CardTitle>
+                <CardDescription>Total estimated burn in selected range.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">Total</span>
+                        <span className="font-semibold tabular-nums">{data.total_calories} kcal</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">Workouts</span>
+                        <span className="font-medium tabular-nums">{data.workout_count}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">Daily avg</span>
+                        <span className="font-medium tabular-nums">{data.daily_average} kcal</span>
+                    </div>
+                </div>
             </CardContent>
         </Card>
     );

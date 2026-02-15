@@ -8,6 +8,8 @@ import {
     MuscleSplitChart,
     RepDensityChart,
     PlateauRadarChart,
+    CaloriesBurnedChart,
+    CaloriesSummaryCard,
 } from "@/components/AnalyticsCharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,11 +55,23 @@ export default function AnalyticsPage() {
         queryFn: () => api.analytics.plateauRadar(),
     });
 
+    const caloriesHistoryQuery = useQuery({
+        queryKey: ["analytics", "calories-history", range],
+        queryFn: () => api.analytics.caloriesHistory(from, to),
+    });
+
+    const caloriesSummaryQuery = useQuery({
+        queryKey: ["analytics", "calories-summary", range],
+        queryFn: () => api.analytics.caloriesSummary(from, to),
+    });
+
     const isLoading =
         volumeQuery.isLoading ||
         distQuery.isLoading ||
         densityQuery.isLoading ||
-        radarQuery.isLoading;
+        radarQuery.isLoading ||
+        caloriesHistoryQuery.isLoading ||
+        caloriesSummaryQuery.isLoading;
 
     return (
         <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -91,6 +105,15 @@ export default function AnalyticsPage() {
                     <div className="md:col-span-2">
                         <Skeleton className="w-full h-[320px] rounded-xl" />
                     </div>
+                    <div className="md:col-span-2">
+                        <Skeleton className="w-full h-[320px] rounded-xl" />
+                    </div>
+                    <div className="md:col-span-1">
+                        <Skeleton className="w-full h-[300px] rounded-xl" />
+                    </div>
+                    <div className="md:col-span-1">
+                        <Skeleton className="w-full h-[300px] rounded-xl" />
+                    </div>
                     <div className="md:col-span-1">
                         <Skeleton className="w-full h-[300px] rounded-xl" />
                     </div>
@@ -106,13 +129,22 @@ export default function AnalyticsPage() {
                     <div className="md:col-span-2">
                         <VolumeGrowthChart data={volumeQuery.data || []} />
                     </div>
+                    <div className="md:col-span-2">
+                        <CaloriesBurnedChart
+                            data={caloriesHistoryQuery.data || []}
+                            emptyMessage="Log weight in Me to see calorie estimates."
+                        />
+                    </div>
+                    <div className="md:col-span-1">
+                        <CaloriesSummaryCard data={caloriesSummaryQuery.data} />
+                    </div>
                     <div className="md:col-span-1">
                         <MuscleSplitChart data={distQuery.data || []} />
                     </div>
                     <div className="md:col-span-1">
                         <RepDensityChart data={densityQuery.data || []} />
                     </div>
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-1">
                         <PlateauRadarChart data={radarQuery.data || []} />
                     </div>
                 </div>
