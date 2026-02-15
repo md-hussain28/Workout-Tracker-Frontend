@@ -541,41 +541,39 @@ export default function BodyHistoryPage() {
                 <CardHeader className="pb-2 space-y-4">
                     {/* Controls Row */}
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        {/* Row 1: Mode toggle (full width on mobile) */}
+                        <div className="flex p-1 bg-muted rounded-lg shrink-0 w-fit">
+                            <button
+                                onClick={() => setMode("part")}
+                                className={cn(
+                                    "px-4 py-1.5 text-xs font-medium rounded-md transition-all",
+                                    mode === "part"
+                                        ? "bg-background text-foreground shadow-sm"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                Individual
+                            </button>
+                            <button
+                                onClick={() => setMode("group")}
+                                className={cn(
+                                    "px-4 py-1.5 text-xs font-medium rounded-md transition-all",
+                                    mode === "group"
+                                        ? "bg-background text-foreground shadow-sm"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                Compare Groups
+                            </button>
+                        </div>
 
-                        {/* Left Group: Mode Toggle + Content Select */}
-                        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center w-full lg:w-auto">
-
-                            {/* Modern Segmented Control for Mode */}
-                            <div className="flex p-1 bg-muted rounded-lg shrink-0">
-                                <button
-                                    onClick={() => setMode("part")}
-                                    className={cn(
-                                        "px-4 py-1.5 text-xs font-medium rounded-md transition-all",
-                                        mode === "part"
-                                            ? "bg-background text-foreground shadow-sm"
-                                            : "text-muted-foreground hover:text-foreground"
-                                    )}
-                                >
-                                    Individual
-                                </button>
-                                <button
-                                    onClick={() => setMode("group")}
-                                    className={cn(
-                                        "px-4 py-1.5 text-xs font-medium rounded-md transition-all",
-                                        mode === "group"
-                                            ? "bg-background text-foreground shadow-sm"
-                                            : "text-muted-foreground hover:text-foreground"
-                                    )}
-                                >
-                                    Compare Groups
-                                </button>
-                            </div>
-
-                            {/* Contextual Dropdown */}
-                            <div className="w-full sm:w-[220px]">
+                        {/* Row 2 on mobile: Content select + Date range in one row, share width. On lg: same row as mode, spaced apart */}
+                        <div className="flex flex-row gap-2 w-full min-w-0 lg:flex-1">
+                            {/* Contextual Dropdown (Weight / Part / Group) */}
+                            <div className="flex-1 min-w-0 lg:w-[220px]">
                                 {mode === "part" ? (
                                     <Select value={selectedPart} onValueChange={setSelectedPart}>
-                                        <SelectTrigger className="h-9 w-full">
+                                        <SelectTrigger className="h-9 w-full min-w-0">
                                             <SelectValue placeholder="Select Part" />
                                         </SelectTrigger>
                                         <SelectContent className="max-h-[400px] w-[300px]">
@@ -601,7 +599,7 @@ export default function BodyHistoryPage() {
                                     </Select>
                                 ) : (
                                     <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-                                        <SelectTrigger className="h-9 w-full">
+                                        <SelectTrigger className="h-9 w-full min-w-0">
                                             <SelectValue placeholder="Select Group" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -615,29 +613,29 @@ export default function BodyHistoryPage() {
                                     </Select>
                                 )}
                             </div>
-                        </div>
 
-                        {/* Right Group: Date Range */}
-                        <div className="flex items-center gap-2 w-full lg:w-auto justify-start lg:justify-end">
-                            <Select value={rangeType} onValueChange={(v) => setRangeType(v as RangeOption)}>
-                                <SelectTrigger className="h-9 w-[130px]">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent align="end">
-                                    <SelectItem value="1w">1 Week</SelectItem>
-                                    <SelectItem value="1m">1 Month</SelectItem>
-                                    <SelectItem value="3m">3 Months</SelectItem>
-                                    <SelectItem value="6m">6 Months</SelectItem>
-                                    <SelectItem value="1y">1 Year</SelectItem>
-                                    <SelectItem value="2y">2 Years</SelectItem>
-                                    <SelectItem value="all">All Time</SelectItem>
-                                    <SelectItem value="custom">Custom</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            {/* Date Range */}
+                            <div className="flex items-center gap-2 flex-1 min-w-0 lg:flex-initial lg:w-auto justify-end">
+                                <Select value={rangeType} onValueChange={(v) => setRangeType(v as RangeOption)}>
+                                    <SelectTrigger className="h-9 w-full min-w-0 lg:w-[130px]">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent align="end">
+                                        <SelectItem value="1w">1 Week</SelectItem>
+                                        <SelectItem value="1m">1 Month</SelectItem>
+                                        <SelectItem value="3m">3 Months</SelectItem>
+                                        <SelectItem value="6m">6 Months</SelectItem>
+                                        <SelectItem value="1y">1 Year</SelectItem>
+                                        <SelectItem value="2y">2 Years</SelectItem>
+                                        <SelectItem value="all">All Time</SelectItem>
+                                        <SelectItem value="custom">Custom</SelectItem>
+                                    </SelectContent>
+                                </Select>
 
-                            {rangeType === "custom" && (
-                                <DatePickerWithRange date={dateRange} setDate={setDateRange} className="flex-1 sm:flex-none" />
-                            )}
+                                {rangeType === "custom" && (
+                                    <DatePickerWithRange date={dateRange} setDate={setDateRange} className="flex-1 min-w-0 sm:flex-none" />
+                                )}
+                            </div>
                         </div>
                     </div>
 

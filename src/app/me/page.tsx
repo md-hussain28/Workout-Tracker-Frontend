@@ -814,16 +814,23 @@ export default function MePage() {
                                         <TrendingUp className="size-4 text-primary" />
                                         Weight Trend
                                     </CardTitle>
-                                    <div className="flex gap-1">
-                                        {[7, 30, 90].map((d) => (
+                                    <div className="flex flex-wrap gap-1">
+                                        {([
+                                            { days: 7, label: "7d" },
+                                            { days: 30, label: "30d" },
+                                            { days: 90, label: "90d" },
+                                            { days: 180, label: "6m" },
+                                            { days: 365, label: "1y" },
+                                            { days: 730, label: "2y" },
+                                        ]).map(({ days, label }) => (
                                             <Button
-                                                key={d}
-                                                variant={historyDays === d ? "default" : "ghost"}
+                                                key={days}
+                                                variant={historyDays === days ? "default" : "ghost"}
                                                 size="sm"
                                                 className="h-7 rounded-lg px-2.5 text-xs"
-                                                onClick={() => setHistoryDays(d)}
+                                                onClick={() => setHistoryDays(days)}
                                             >
-                                                {d}d
+                                                {label}
                                             </Button>
                                         ))}
                                     </div>

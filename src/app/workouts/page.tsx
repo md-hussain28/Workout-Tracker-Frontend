@@ -49,6 +49,14 @@ function groupByDate(workouts: Workout[]): Map<string, Workout[]> {
   return groups;
 }
 
+/** e.g. "Morning", "Afternoon", "Evening" for a more meaningful workout label */
+function getTimeOfDayLabel(date: Date): string {
+  const h = date.getHours();
+  if (h < 12) return "Morning";
+  if (h < 17) return "Afternoon";
+  return "Evening";
+}
+
 export default function WorkoutsListPage() {
   const [mode, setMode] = useState<ViewMode>("week");
 
@@ -139,20 +147,21 @@ export default function WorkoutsListPage() {
                               </div>
                               <div>
                                 <p className="font-medium">
-                                  {new Date(w.started_at).toLocaleTimeString(undefined, {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
+                                  {w.duration_seconds != null ? (
+                                    <>
+                                      {getTimeOfDayLabel(new Date(w.started_at))} · {Math.round(w.duration_seconds / 60)} min
+                                    </>
+                                  ) : (
+                                    <span className="text-green-500">In progress</span>
+                                  )}
                                 </p>
                                 <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                  {w.duration_seconds != null ? (
-                                    <span className="flex items-center gap-1">
-                                      <Clock className="size-3" />
-                                      {Math.round(w.duration_seconds / 60)} min
-                                    </span>
-                                  ) : (
-                                    <span className="text-green-500 font-medium">In progress</span>
-                                  )}
+                                  <span>
+                                    {new Date(w.started_at).toLocaleTimeString(undefined, {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
                                 </div>
                               </div>
                             </div>
