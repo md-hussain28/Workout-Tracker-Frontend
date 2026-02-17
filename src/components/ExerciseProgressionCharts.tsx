@@ -230,8 +230,8 @@ export function ExerciseProgressionCharts({
                       boxShadow: "0 10px 40px -10px rgba(0,0,0,0.2)",
                     }}
                     labelFormatter={(v) => formatDateLong(String(v))}
-                    formatter={(value: number) => [
-                      `${Number(value).toFixed(1)} ${exercise.unit}`,
+                    formatter={(value) => [
+                      `${Number(value ?? 0).toFixed(1)} ${exercise.unit}`,
                       "Est. 1RM",
                     ]}
                     cursor={{ stroke: CHART.grid, strokeWidth: 1 }}
@@ -297,7 +297,7 @@ export function ExerciseProgressionCharts({
                       boxShadow: "0 10px 40px -10px rgba(0,0,0,0.2)",
                     }}
                     labelFormatter={(v) => formatDateLong(String(v))}
-                    formatter={(value: number) => [Number(value).toLocaleString(), "Volume"]}
+                    formatter={(value) => [Number(value ?? 0).toLocaleString(), "Volume"]}
                     cursor={{ fill: CHART.volumeMuted }}
                   />
                   <Bar
@@ -364,7 +364,7 @@ export function ExerciseProgressionCharts({
                       boxShadow: "0 10px 40px -10px rgba(0,0,0,0.2)",
                     }}
                     labelFormatter={(v) => formatDateLong(String(v))}
-                    formatter={(value: number) => [`${Number(value)} ${exercise.unit}`, "Max Weight"]}
+                    formatter={(value) => [`${Number(value ?? 0)} ${exercise.unit}`, "Max Weight"]}
                     cursor={{ stroke: CHART.grid, strokeWidth: 1 }}
                   />
                   <Area

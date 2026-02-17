@@ -41,10 +41,21 @@ export function WorkoutExerciseCard({ workoutId, exercise, sets, onOpenHistory }
         });
     };
 
-    const handleUpdateSet = (setId: string, weight: number | null, reps: number | null) => {
+    const handleUpdateSet = (
+        setId: string,
+        weight: number | null,
+        reps: number | null,
+        time_under_tension_seconds?: number | null,
+        rest_seconds_after?: number | null,
+    ) => {
         updateSetMutation.mutate({
             setId,
-            body: { weight, reps },
+            body: {
+                weight,
+                reps,
+                time_under_tension_seconds: time_under_tension_seconds ?? null,
+                rest_seconds_after: rest_seconds_after ?? null,
+            },
         });
     };
 

@@ -336,6 +336,8 @@ export interface WorkoutSet {
   duration_seconds: number | null;
   notes: string | null;
   set_label: SetLabel | null;
+  time_under_tension_seconds: number | null;
+  rest_seconds_after: number | null;
   is_pr: boolean;
   pr_type: PRType | null;
   exercise?: Exercise;
@@ -349,6 +351,8 @@ export interface WorkoutSetCreate {
   duration_seconds?: number | null;
   notes?: string | null;
   set_label?: SetLabel | null;
+  time_under_tension_seconds?: number | null;
+  rest_seconds_after?: number | null;
 }
 
 export interface WorkoutSetUpdate {
@@ -357,6 +361,8 @@ export interface WorkoutSetUpdate {
   duration_seconds?: number | null;
   notes?: string | null;
   set_label?: SetLabel | null;
+  time_under_tension_seconds?: number | null;
+  rest_seconds_after?: number | null;
 }
 
 export interface Workout {

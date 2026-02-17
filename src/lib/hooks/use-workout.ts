@@ -30,6 +30,8 @@ export function useAddSet(workoutId: string) {
                     duration_seconds: newSet.duration_seconds ?? null,
                     notes: newSet.notes ?? null,
                     set_label: newSet.set_label ?? null,
+                    time_under_tension_seconds: newSet.time_under_tension_seconds ?? null,
+                    rest_seconds_after: newSet.rest_seconds_after ?? null,
                     is_pr: false,
                     pr_type: null,
                 };

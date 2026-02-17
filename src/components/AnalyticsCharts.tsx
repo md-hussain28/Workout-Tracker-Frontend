@@ -8,6 +8,7 @@ import {
     Tooltip,
     ResponsiveContainer,
     Legend,
+    CartesianGrid,
     PieChart,
     Pie,
     Cell,
@@ -73,45 +74,90 @@ const COLORS = [
 export function VolumeGrowthChart({ data }: { data: VolumeHistoryData[] }) {
     if (!data || data.length === 0) return <EmptyState title="Volume Growth" icon={TrendingUp} />;
 
-    // Extract all muscle keys (exclude 'date')
-    const keys = Array.from(new Set(data.flatMap(Object.keys).filter((k) => k !== "date")));
+    // Extract all muscle keys (exclude 'date') and sort for stable colors
+    const keys = Array.from(new Set(data.flatMap((d) => Object.keys(d).filter((k) => k !== "date")))).sort();
+
+    // Normalize: every row has every key (0 if missing) so lines connect
+    const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date));
+    const normalizedData = sortedData.map((row) => {
+        const out: VolumeHistoryData = { date: row.date };
+        keys.forEach((k) => { out[k] = Number(row[k]) || 0; });
+        return out;
+    });
+
+    const gridStroke = "hsl(var(--border) / 0.5)";
+    const tooltipBg = "hsl(var(--card))";
+    const tooltipBorder = "hsl(var(--border))";
 
     return (
-        <Card className="col-span-1 lg:col-span-2">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="size-5 text-primary" />
+        <Card className="col-span-1 lg:col-span-2 rounded-2xl border-border/80 shadow-sm overflow-hidden">
+            <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                    <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                        <TrendingUp className="size-5" />
+                    </div>
                     Volume Growth
                 </CardTitle>
-                <CardDescription>Total volume (Weight × Reps) per muscle group over time.</CardDescription>
+                <CardDescription className="text-muted-foreground">
+                    Total volume (Weight × Reps) per muscle group over time.
+                </CardDescription>
             </CardHeader>
-            <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                        <XAxis
-                            dataKey="date"
-                            tick={{ fontSize: 12 }}
-                            tickFormatter={(v) => new Date(v).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                        />
-                        <YAxis tick={{ fontSize: 12 }} />
-                        <Tooltip
-                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                            labelFormatter={(v) => new Date(v).toLocaleDateString()}
-                        />
-                        <Legend wrapperStyle={{ paddingTop: '10px' }} />
-                        {keys.map((key, index) => (
-                            <Line
-                                key={key}
-                                type="monotone"
-                                dataKey={key}
-                                stroke={COLORS[index % COLORS.length]}
-                                strokeWidth={2}
-                                dot={false}
-                                activeDot={{ r: 6 }}
+            <CardContent className="pt-0">
+                <div className="h-[320px] w-full rounded-xl bg-muted/10 p-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                            data={normalizedData}
+                            margin={{ top: 12, right: 12, left: -8, bottom: 0 }}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+                            <XAxis
+                                dataKey="date"
+                                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                                tickFormatter={(v) => new Date(v).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                                axisLine={false}
+                                tickLine={false}
                             />
-                        ))}
-                    </LineChart>
-                </ResponsiveContainer>
+                            <YAxis
+                                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                                width={40}
+                                axisLine={false}
+                                tickLine={false}
+                                tickFormatter={(v) => (Number(v) >= 1000 ? `${(Number(v) / 1000).toFixed(1)}k` : String(v))}
+                            />
+                            <Tooltip
+                                contentStyle={{
+                                    backgroundColor: tooltipBg,
+                                    border: `1px solid ${tooltipBorder}`,
+                                    borderRadius: "1rem",
+                                    fontSize: 13,
+                                    boxShadow: "0 10px 40px -10px rgba(0,0,0,0.15)",
+                                }}
+                                labelFormatter={(v) => new Date(v).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                                formatter={(value) => [Number(value ?? 0).toLocaleString(), ""]}
+                                cursor={{ stroke: gridStroke, strokeWidth: 1 }}
+                            />
+                            <Legend
+                                wrapperStyle={{ paddingTop: 12 }}
+                                iconType="circle"
+                                iconSize={8}
+                                formatter={(value) => <span className="text-sm font-medium">{value}</span>}
+                            />
+                            {keys.map((key, index) => (
+                                <Line
+                                    key={key}
+                                    type="monotone"
+                                    dataKey={key}
+                                    name={key}
+                                    stroke={COLORS[index % COLORS.length]}
+                                    strokeWidth={2.5}
+                                    dot={false}
+                                    activeDot={{ r: 6, strokeWidth: 2, stroke: "hsl(var(--background))" }}
+                                    connectNulls
+                                />
+                            ))}
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
             </CardContent>
         </Card>
     );
@@ -238,7 +284,7 @@ export function CaloriesBurnedChart({ data, emptyMessage }: { data: CaloriesHist
                         <Tooltip
                             contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
                             labelFormatter={(v) => new Date(v).toLocaleDateString()}
-                            formatter={(value: number) => [`${value} kcal`, "Calories"]}
+                            formatter={(value) => [`${value ?? 0} kcal`, "Calories"]}
                         />
                         <Bar dataKey="calories" fill="hsl(25, 80%, 55%)" name="Calories" radius={[4, 4, 0, 0]} />
                     </BarChart>
