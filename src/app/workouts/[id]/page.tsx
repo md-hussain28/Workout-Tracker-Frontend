@@ -3,7 +3,7 @@
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
   StopCircle,
@@ -20,6 +20,7 @@ import {
   Award,
   Sparkles,
   CalendarDays,
+  Loader2,
 } from "lucide-react";
 import { api, type Exercise, type WorkoutWithSets, type WorkoutSet, type WorkoutSetCreate } from "@/lib/api";
 import { useWorkout, useAddSet, useUpdateSet, useDeleteSet, useEndWorkout, useDeleteWorkout, useDeleteExerciseSets } from "@/lib/hooks/use-workout";
@@ -134,6 +135,7 @@ function ExercisePickerModal({
   }, [filtered]);
 
   function handleSelect(ex: Exercise) {
+    if (addSetMutation.isPending) return;
     addSetMutation.mutate({
       exercise_id: ex.id,
       set_order: 0,
@@ -182,8 +184,10 @@ function ExercisePickerModal({
                   return (
                     <button
                       key={ex.id}
+                      type="button"
                       onClick={() => handleSelect(ex)}
-                      className="w-full flex items-center justify-between py-3 px-3 rounded-xl hover:bg-muted/50 active:bg-muted transition-colors text-left"
+                      disabled={addSetMutation.isPending || alreadyAdded}
+                      className="w-full flex items-center justify-between py-3 px-3 rounded-xl hover:bg-muted/50 active:bg-muted transition-colors text-left disabled:opacity-50 disabled:pointer-events-none"
                     >
                       <div>
                         <p className="font-medium text-sm">{ex.name}</p>
@@ -209,23 +213,23 @@ function SaveAsTemplateButton({ workoutId }: { workoutId: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await api.templates.createFromWorkout({ name: name.trim(), workout_id: workoutId });
+  const saveMutation = useMutation({
+    mutationFn: (name: string) =>
+      api.templates.createFromWorkout({ name, workout_id: workoutId }),
+    onSuccess: () => {
       setOpen(false);
       router.push("/settings");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save template");
-    } finally {
-      setLoading(false);
-    }
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : "Failed to save template"),
+  });
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || saveMutation.isPending) return;
+    setError(null);
+    saveMutation.mutate(name.trim());
   }
 
   return (
@@ -249,11 +253,23 @@ function SaveAsTemplateButton({ workoutId }: { workoutId: string }) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="rounded-xl"
+              disabled={saveMutation.isPending}
             />
           </div>
           {error && <p className="text-destructive text-sm">{error}</p>}
-          <Button type="submit" className="w-full rounded-xl" disabled={!name.trim() || loading}>
-            {loading ? "Saving…" : "Save"}
+          <Button
+            type="submit"
+            className="w-full rounded-xl"
+            disabled={!name.trim() || saveMutation.isPending}
+          >
+            {saveMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Saving…
+              </>
+            ) : (
+              "Save"
+            )}
           </Button>
         </form>
       </DialogContent>
@@ -277,6 +293,7 @@ export default function WorkoutDetailPage() {
   const deleteWorkoutMutation = useDeleteWorkout();
 
   function handleDeleteWorkout() {
+    if (deleteWorkoutMutation.isPending) return;
     if (!window.confirm("Delete this entire workout? This cannot be undone.")) return;
     deleteWorkoutMutation.mutate(workoutId, {
       onSuccess: () => router.push("/workouts"),
@@ -399,8 +416,18 @@ export default function WorkoutDetailPage() {
         </div>
         {isActive && <LiveTimer startedAt={workout.started_at} />}
         {!isActive && (
-          <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={handleDeleteWorkout}>
-            <Trash2 className="size-5" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-destructive hover:bg-destructive/10"
+            onClick={handleDeleteWorkout}
+            disabled={deleteWorkoutMutation.isPending}
+          >
+            {deleteWorkoutMutation.isPending ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : (
+              <Trash2 className="size-5" />
+            )}
           </Button>
         )}
       </div>
@@ -423,7 +450,11 @@ export default function WorkoutDetailPage() {
             onClick={() => setEndDialogOpen(true)}
             disabled={endWorkoutMutation.isPending}
           >
-            <StopCircle className="mr-2 size-5" />
+            {endWorkoutMutation.isPending ? (
+              <Loader2 className="mr-2 size-5 animate-spin" />
+            ) : (
+              <StopCircle className="mr-2 size-5" />
+            )}
             End
           </Button>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
@@ -13,7 +14,8 @@ import {
 } from "@/components/AnalyticsCharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Calendar, TrendingUp, ChevronRight } from "lucide-react";
 
 type TimeRange = "1m" | "3m" | "6m" | "1y" | "all";
 
@@ -126,6 +128,24 @@ export default function AnalyticsPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="md:col-span-2">
+                        <Link href="/stats/progression">
+                            <Card className="mb-6 overflow-hidden border-border/80 shadow-sm transition-colors hover:bg-muted/30 hover:border-primary/30 cursor-pointer">
+                                <CardContent className="py-4 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                                            <TrendingUp className="size-5" />
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold">Exercise progression</p>
+                                            <p className="text-muted-foreground text-sm">View 1RM, volume & max weight by exercise</p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="size-5 text-muted-foreground" />
+                                </CardContent>
+                            </Card>
+                        </Link>
+                    </div>
                     <div className="md:col-span-2">
                         <VolumeGrowthChart data={volumeQuery.data || []} />
                     </div>

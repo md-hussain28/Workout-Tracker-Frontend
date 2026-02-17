@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { api, type MeasurementMode } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -41,38 +41,37 @@ export default function NewExercisePage() {
   const [primaryId, setPrimaryId] = useState<string>("");
   const [secondaryId, setSecondaryId] = useState<string>("");
   const [tertiaryId, setTertiaryId] = useState<string>("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
+  const createMutation = useMutation({
+    mutationFn: (payload: Parameters<typeof api.exercises.create>[0]) => api.exercises.create(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["exercises"] });
+      router.push("/exercises");
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : "Failed to create exercise"),
+  });
+
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || createMutation.isPending) return;
     if (!primaryId) {
       setError("Primary muscle group is required.");
       return;
     }
-    setLoading(true);
     setError(null);
-    try {
-      await api.exercises.create({
-        name: name.trim(),
-        description: description.trim() || null,
-        unit,
-        measurement_mode: measurementMode,
-        primary_muscle_group_id: primaryId,
-        secondary_muscle_group_id: secondaryId && secondaryId !== "none" ? secondaryId : null,
-        tertiary_muscle_group_id: tertiaryId && tertiaryId !== "none" ? tertiaryId : null,
-      });
-      queryClient.invalidateQueries({ queryKey: ["exercises"] });
-      router.push("/exercises");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create exercise");
-    } finally {
-      setLoading(false);
-    }
+    createMutation.mutate({
+      name: name.trim(),
+      description: description.trim() || null,
+      unit,
+      measurement_mode: measurementMode,
+      primary_muscle_group_id: primaryId,
+      secondary_muscle_group_id: secondaryId && secondaryId !== "none" ? secondaryId : null,
+      tertiary_muscle_group_id: tertiaryId && tertiaryId !== "none" ? tertiaryId : null,
+    });
   }
 
-  const canSubmit = name.trim() && primaryId && !loading;
+  const canSubmit = name.trim() && primaryId && !createMutation.isPending;
 
   return (
     <div className="mx-auto max-w-lg px-4 pt-6 pb-4">
@@ -201,7 +200,14 @@ export default function NewExercisePage() {
           size="lg"
           disabled={!canSubmit}
         >
-          {loading ? "Creating…" : "Create exercise"}
+          {createMutation.isPending ? (
+            <>
+              <Loader2 className="mr-2 size-5 animate-spin" />
+              Creating…
+            </>
+          ) : (
+            "Create exercise"
+          )}
         </Button>
       </form>
     </div>

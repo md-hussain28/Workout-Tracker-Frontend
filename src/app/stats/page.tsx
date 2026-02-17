@@ -1,4 +1,5 @@
-import { Trophy, Calendar } from "lucide-react";
+import Link from "next/link";
+import { Trophy, Calendar, TrendingUp, ChevronRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,23 @@ export default async function StatsPage() {
       </p>
 
       {error && <p className="text-destructive text-sm py-4">{error}</p>}
+
+      <Link href="/stats/progression">
+        <Card className="mb-6 overflow-hidden border-border/80 shadow-sm transition-colors hover:bg-muted/30 hover:border-primary/30">
+          <CardContent className="py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <TrendingUp className="size-5" />
+              </div>
+              <div>
+                <p className="font-semibold">Exercise progression</p>
+                <p className="text-muted-foreground text-sm">View 1RM, volume & max weight by exercise</p>
+              </div>
+            </div>
+            <ChevronRight className="size-5 text-muted-foreground" />
+          </CardContent>
+        </Card>
+      </Link>
 
       {!error && prData && (
         <Card className="mb-6 overflow-hidden border-primary/20">

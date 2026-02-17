@@ -2,28 +2,29 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Play } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { Play, Loader2 } from "lucide-react";
 import { api, type WorkoutTemplate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 export function TemplateDetailClient({ template }: { template: WorkoutTemplate }) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleStart() {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.templates.instantiate(template.id);
+  const instantiateMutation = useMutation({
+    mutationFn: () => api.templates.instantiate(template.id),
+    onSuccess: (res) => {
       router.push(`/workouts/${res.workout_id}`);
       router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start workout");
-    } finally {
-      setLoading(false);
-    }
+    },
+    onError: (e) => setError(e instanceof Error ? e.message : "Failed to start workout"),
+  });
+
+  function handleStart() {
+    if (instantiateMutation.isPending) return;
+    setError(null);
+    instantiateMutation.mutate();
   }
 
   const exercises = template.exercises
@@ -37,13 +38,23 @@ export function TemplateDetailClient({ template }: { template: WorkoutTemplate }
       <Card className="mb-6 overflow-hidden border-primary/20 bg-primary/5">
         <CardContent className="py-6">
           <Button
+            type="button"
             className="w-full rounded-xl py-6 text-base font-medium"
             size="lg"
             onClick={handleStart}
-            disabled={loading}
+            disabled={instantiateMutation.isPending}
           >
-            <Play className="mr-2 size-5" />
-            {loading ? "Starting…" : "Start workout from template"}
+            {instantiateMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 size-5 animate-spin" />
+                Starting…
+              </>
+            ) : (
+              <>
+                <Play className="mr-2 size-5" />
+                Start workout from template
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>

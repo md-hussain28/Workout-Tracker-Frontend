@@ -13,6 +13,7 @@ import {
     Wifi,
     Activity,
     Clock,
+    Loader2,
 } from "lucide-react";
 import { api, API_BASE, type WorkoutTemplate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -143,13 +144,21 @@ function TemplateCard({ template }: { template: WorkoutTemplate }) {
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
+                            type="button"
                             variant="default"
                             size="sm"
                             className="rounded-lg"
-                            onClick={() => instantiateMutation.mutate()}
+                            onClick={() => {
+                                if (instantiateMutation.isPending) return;
+                                instantiateMutation.mutate();
+                            }}
                             disabled={instantiateMutation.isPending}
                         >
-                            <Play className="mr-1 size-3.5" />
+                            {instantiateMutation.isPending ? (
+                                <Loader2 className="mr-1 size-3.5 animate-spin" />
+                            ) : (
+                                <Play className="mr-1 size-3.5" />
+                            )}
                             Start
                         </Button>
                         <Button

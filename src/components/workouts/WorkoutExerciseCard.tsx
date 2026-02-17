@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, History, TrendingUp, MoreVertical } from "lucide-react";
+import { Plus, Trash2, History, TrendingUp, MoreVertical, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,7 @@ export function WorkoutExerciseCard({ workoutId, exercise, sets, onOpenHistory }
 
     // ── Handlers ──
     const handleAddSet = () => {
+        if (addSetMutation.isPending) return;
         const nextOrder = sets.length;
         addSetMutation.mutate({
             exercise_id: exercise.id,
@@ -52,7 +53,7 @@ export function WorkoutExerciseCard({ workoutId, exercise, sets, onOpenHistory }
     };
 
     const handleDeleteExercise = () => {
-        // In a real app we might want a nicer confirmation dialog
+        if (deleteExerciseSetsMutation.isPending) return;
         if (confirm("Remove this exercise and all sets?")) {
             const ids = sets.map(s => s.id).filter(id => !id.startsWith("temp-"));
             deleteExerciseSetsMutation.mutate(ids);
@@ -74,7 +75,7 @@ export function WorkoutExerciseCard({ workoutId, exercise, sets, onOpenHistory }
                         {exercise.primary_muscle_group?.name || "Exercise"}
                     </p>
                 </div>
-                <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1">
                     <Button
                         variant="ghost"
                         size="icon"
@@ -85,12 +86,25 @@ export function WorkoutExerciseCard({ workoutId, exercise, sets, onOpenHistory }
                     </Button>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-destructive">
-                                <MoreVertical className="size-4" />
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground/50 hover:text-destructive"
+                                disabled={deleteExerciseSetsMutation.isPending}
+                            >
+                                {deleteExerciseSetsMutation.isPending ? (
+                                    <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                    <MoreVertical className="size-4" />
+                                )}
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem className="text-destructive" onClick={handleDeleteExercise}>
+                            <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={handleDeleteExercise}
+                                disabled={deleteExerciseSetsMutation.isPending}
+                            >
                                 <Trash2 className="mr-2 size-4" />
                                 Remove Exercise
                             </DropdownMenuItem>
@@ -128,7 +142,11 @@ export function WorkoutExerciseCard({ workoutId, exercise, sets, onOpenHistory }
                             onClick={handleAddSet}
                             disabled={addSetMutation.isPending}
                         >
-                            <Plus className="mr-2 size-4" />
+                            {addSetMutation.isPending ? (
+                                <Loader2 className="mr-2 size-4 animate-spin" />
+                            ) : (
+                                <Plus className="mr-2 size-4" />
+                            )}
                             Add Set
                         </Button>
                     </div>

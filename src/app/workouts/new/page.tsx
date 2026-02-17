@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Play, LayoutTemplate, Zap, ArrowLeft, AlertTriangle } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Play, LayoutTemplate, Zap, ArrowLeft, AlertTriangle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { api, type Workout } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,8 @@ import { Badge } from "@/components/ui/badge";
 
 export default function NewWorkoutPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [notes, setNotes] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { data: templates = [] } = useQuery({
@@ -34,30 +34,36 @@ export default function NewWorkoutPage() {
     [recentWorkouts]
   );
 
-  async function handleStartBlank() {
-    setLoading(true);
-    setError(null);
-    try {
-      const workout = await api.workouts.create(notes ? { notes } : {});
+  const createMutation = useMutation({
+    mutationFn: (payload: { notes?: string }) => api.workouts.create(payload),
+    onSuccess: (workout) => {
+      queryClient.invalidateQueries({ queryKey: ["workouts"] });
       router.replace(`/workouts/${workout.id}`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start workout");
-    } finally {
-      setLoading(false);
-    }
+    },
+    onError: (e) => setError(e instanceof Error ? e.message : "Failed to start workout"),
+  });
+
+  const instantiateMutation = useMutation({
+    mutationFn: (templateId: string) => api.templates.instantiate(templateId),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["workouts"] });
+      router.replace(`/workouts/${result.workout_id}`);
+    },
+    onError: (e) => setError(e instanceof Error ? e.message : "Failed to start from template"),
+  });
+
+  const anyPending = createMutation.isPending || instantiateMutation.isPending;
+
+  function handleStartBlank() {
+    if (anyPending) return;
+    setError(null);
+    createMutation.mutate(notes ? { notes } : {});
   }
 
-  async function handleStartFromTemplate(templateId: string) {
-    setLoading(true);
+  function handleStartFromTemplate(templateId: string) {
+    if (anyPending) return;
     setError(null);
-    try {
-      const result = await api.templates.instantiate(templateId);
-      router.replace(`/workouts/${result.workout_id}`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start from template");
-    } finally {
-      setLoading(false);
-    }
+    instantiateMutation.mutate(templateId);
   }
 
   return (
@@ -122,11 +128,12 @@ export default function NewWorkoutPage() {
               {templates.map((t) => (
                 <button
                   key={t.id}
+                  type="button"
                   onClick={() => handleStartFromTemplate(t.id)}
-                  disabled={loading || !!activeWorkout}
-                  className="w-full flex items-center justify-between py-3 px-3 rounded-xl border border-border hover:bg-muted/50 active:bg-muted transition-colors text-left disabled:opacity-50"
+                  disabled={anyPending || !!activeWorkout}
+                  className="w-full flex items-center justify-between py-3 px-3 rounded-xl border border-border hover:bg-muted/50 active:bg-muted transition-colors text-left disabled:opacity-50 disabled:pointer-events-none"
                 >
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm">{t.name}</p>
                     {t.exercises && t.exercises.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
@@ -150,7 +157,11 @@ export default function NewWorkoutPage() {
                       </div>
                     )}
                   </div>
-                  <Play className="size-5 text-primary shrink-0 ml-3" />
+                  {anyPending ? (
+                    <Loader2 className="size-5 text-primary shrink-0 ml-3 animate-spin" />
+                  ) : (
+                    <Play className="size-5 text-primary shrink-0 ml-3" />
+                  )}
                 </button>
               ))}
             </CardContent>
@@ -183,12 +194,20 @@ export default function NewWorkoutPage() {
               />
             </div>
             <Button
+              type="button"
               className="w-full rounded-xl py-5 text-base font-medium"
               size="lg"
               onClick={handleStartBlank}
-              disabled={loading || !!activeWorkout}
+              disabled={anyPending || !!activeWorkout}
             >
-              {loading ? "Starting…" : "Start blank workout"}
+              {createMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 size-5 animate-spin" />
+                  Starting…
+                </>
+              ) : (
+                "Start blank workout"
+              )}
             </Button>
           </CardContent>
         </Card>

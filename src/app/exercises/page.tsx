@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Dumbbell } from "lucide-react";
 import { api, type Exercise, type MuscleGroup } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +13,8 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -26,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Plus, Search, Dumbbell, Trash2, Loader2 } from "lucide-react";
 
 type TabMode = "exercises" | "muscles";
 type SortOption = "name" | "count";
@@ -85,7 +87,8 @@ function AddMuscleGroupDialog() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (name.trim()) createMutation.mutate({ name: name.trim(), color });
+            if (!name.trim() || createMutation.isPending) return;
+            createMutation.mutate({ name: name.trim(), color });
           }}
           className="space-y-4"
         >
@@ -127,7 +130,14 @@ function AddMuscleGroupDialog() {
             className="w-full rounded-xl"
             disabled={!name.trim() || createMutation.isPending}
           >
-            {createMutation.isPending ? "Creating…" : "Create"}
+            {createMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Creating…
+              </>
+            ) : (
+              "Create"
+            )}
           </Button>
         </form>
       </DialogContent>
@@ -137,9 +147,19 @@ function AddMuscleGroupDialog() {
 
 export default function ExercisesPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<TabMode>("exercises");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("name");
+  const [exerciseToDelete, setExerciseToDelete] = useState<Exercise | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.exercises.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["exercises"] });
+      setExerciseToDelete(null);
+    },
+  });
 
   const { data: exercises = [], isLoading: isLoadingExercises } = useQuery({
     queryKey: ["exercises"],
@@ -299,7 +319,7 @@ export default function ExercisesPage() {
                                     </Badge>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1">
                                   <span className="text-muted-foreground text-sm">View</span>
                                   <Button
                                     size="sm"
@@ -312,6 +332,18 @@ export default function ExercisesPage() {
                                     }}
                                   >
                                     Edit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setExerciseToDelete(ex);
+                                    }}
+                                  >
+                                    <Trash2 className="size-4" />
                                   </Button>
                                 </div>
                               </CardContent>
@@ -407,6 +439,47 @@ export default function ExercisesPage() {
           </div>
         )}
       </div>
+
+      {/* Delete exercise confirmation */}
+      <Dialog
+        open={exerciseToDelete !== null}
+        onOpenChange={(open) => !open && setExerciseToDelete(null)}
+      >
+        <DialogContent className="rounded-2xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete exercise</DialogTitle>
+            <DialogDescription>
+              {exerciseToDelete
+                ? `Delete "${exerciseToDelete.name}"? This cannot be undone. The exercise will be removed from your list.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => setExerciseToDelete(null)}
+              disabled={deleteMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="rounded-xl"
+              onClick={() =>
+                exerciseToDelete && deleteMutation.mutate(exerciseToDelete.id)
+              }
+              disabled={!exerciseToDelete || deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Floating Action Button – Add Exercise */}
       <Link
