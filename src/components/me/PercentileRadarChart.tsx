@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import {
     Radar,
     RadarChart,
@@ -10,8 +11,13 @@ import {
     Tooltip,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Target } from "lucide-react";
-import { useMemo } from "react";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Target, Info } from "lucide-react";
 
 const PERCENTILE_LABELS: Record<string, string> = {
     chest: "Chest",
@@ -31,7 +37,11 @@ interface Props {
     percentiles: Record<string, number>;
 }
 
+const RELATIVE_STRENGTH_NOTE =
+    "Each axis is your percentile vs. U.S. adults (NHANES 2017–2020). Uses the circumferences you log (neck, shoulders, chest, bicep, forearm, waist, hips, thigh, calf, ankle, wrist). Same measurement technique over time gives comparable, reliable trends.";
+
 export default function PercentileRadarChart({ percentiles }: Props) {
+    const [infoOpen, setInfoOpen] = useState(false);
     const data = useMemo(() => {
         return Object.entries(percentiles)
             .filter(([key]) => PERCENTILE_LABELS[key])
@@ -54,6 +64,7 @@ export default function PercentileRadarChart({ percentiles }: Props) {
     if (data.length < 3) return null;
 
     return (
+        <>
         <Card className="border-border/40">
             <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -101,7 +112,24 @@ export default function PercentileRadarChart({ percentiles }: Props) {
                         </RadarChart>
                     </ResponsiveContainer>
                 </div>
+                <button
+                    type="button"
+                    onClick={() => setInfoOpen(true)}
+                    className="mt-2 inline-flex items-center gap-1.5 px-1 text-[11px] text-muted-foreground hover:text-foreground"
+                >
+                    <Info className="size-3.5 shrink-0" />
+                    How it&apos;s calculated
+                </button>
             </CardContent>
         </Card>
+        <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
+            <DialogContent className="max-w-xs sm:max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>Relative Strength</DialogTitle>
+                </DialogHeader>
+                <p className="text-sm text-muted-foreground">{RELATIVE_STRENGTH_NOTE}</p>
+            </DialogContent>
+        </Dialog>
+        </>
     );
 }

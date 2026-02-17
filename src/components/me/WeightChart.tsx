@@ -18,8 +18,13 @@ export default function WeightChart({ data }: Props) {
     if (data.length === 0) return null;
 
     const weights = data.map((d) => d.weight);
-    const minW = Math.floor(Math.min(...weights) - 1);
-    const maxW = Math.ceil(Math.max(...weights) + 1);
+    const dataMin = Math.min(...weights);
+    const dataMax = Math.max(...weights);
+    const padding = Math.max(1, (dataMax - dataMin) * 0.1 || 1);
+    const minW = Math.floor((dataMin - padding) * 10) / 10;
+    const maxW = Math.ceil((dataMax + padding) * 10) / 10;
+    const domain: [number, number] = minW < maxW ? [minW, maxW] : [minW, minW + 2];
+    const showDecimals = dataMax - dataMin < 5;
 
     return (
         <ResponsiveContainer width="100%" height={200}>
@@ -43,11 +48,14 @@ export default function WeightChart({ data }: Props) {
                     interval="preserveStartEnd"
                 />
                 <YAxis
-                    domain={[minW, maxW]}
+                    domain={domain}
                     tick={{ fontSize: 11, fill: "oklch(0.65 0.02 260)" }}
+                    tickFormatter={(v) => (showDecimals ? Number(v).toFixed(1) : String(Math.round(Number(v))))}
                     tickLine={false}
                     axisLine={false}
                     width={40}
+                    allowDecimals={showDecimals}
+                    tickCount={6}
                 />
                 <Tooltip
                     contentStyle={{

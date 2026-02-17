@@ -77,11 +77,14 @@ export function VolumeGrowthChart({ data }: { data: VolumeHistoryData[] }) {
     // Extract all muscle keys (exclude 'date') and sort for stable colors
     const keys = Array.from(new Set(data.flatMap((d) => Object.keys(d).filter((k) => k !== "date")))).sort();
 
-    // Normalize: every row has every key (0 if missing) so lines connect
+    // Normalize: use null when a muscle had no volume that day (line will show a gap, not zero)
     const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date));
     const normalizedData = sortedData.map((row) => {
         const out: VolumeHistoryData = { date: row.date };
-        keys.forEach((k) => { out[k] = Number(row[k]) || 0; });
+        keys.forEach((k) => {
+            const v = Number(row[k]);
+            out[k] = v > 0 ? v : (null as unknown as number);
+        });
         return out;
     });
 
@@ -152,7 +155,7 @@ export function VolumeGrowthChart({ data }: { data: VolumeHistoryData[] }) {
                                     strokeWidth={2.5}
                                     dot={false}
                                     activeDot={{ r: 6, strokeWidth: 2, stroke: "hsl(var(--background))" }}
-                                    connectNulls
+                                    connectNulls={false}
                                 />
                             ))}
                         </LineChart>

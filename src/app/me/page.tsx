@@ -543,14 +543,55 @@ function LogBodyDialog() {
     );
 }
 
-
-
-
+// ── Aesthetic Rank Card (explanation in modal) ─────────────────────────
+function AestheticRankCard({ rank }: { rank: number }) {
+    const [infoOpen, setInfoOpen] = useState(false);
+    return (
+        <>
+            <Card className="overflow-hidden border-0 bg-gradient-to-br from-primary/20 via-primary/10 to-background">
+                <CardContent className="relative py-6 text-center">
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 to-transparent" />
+                    <div className="relative z-10">
+                        <Trophy className="mx-auto mb-2 size-8 text-primary" />
+                        <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-primary">
+                            Aesthetic Rank
+                        </p>
+                        <p className="text-4xl font-black tracking-tight">
+                            Top {rank}%
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            vs. population average
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => setInfoOpen(true)}
+                            className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+                        >
+                            <Info className="size-3.5 shrink-0" />
+                            How it&apos;s calculated
+                        </button>
+                    </div>
+                </CardContent>
+            </Card>
+            <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
+                <DialogContent className="max-w-xs sm:max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Aesthetic Rank</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        Composite of shoulder-to-waist ratio, chest/shoulder/bicep/thigh/calf percentiles, and waist (lower is better). Uses your logged measurements and population percentiles. Indicative only—aesthetic is subjective; best for tracking proportionality over time.
+                    </p>
+                </DialogContent>
+            </Dialog>
+        </>
+    );
+}
 
 // ── Main Me Page ────────────────────────────────────────────────────
 export default function MePage() {
     const [historyDays, setHistoryDays] = useState<number>(30);
     const [bioDialogOpen, setBioDialogOpen] = useState(false);
+    const [ffmiInfoOpen, setFfmiInfoOpen] = useState(false);
 
     const { data: bio, isLoading: isBioLoading } = useQuery({
         queryKey: ["body-bio"],
@@ -699,23 +740,7 @@ export default function MePage() {
 
                     {/* Aesthetic Rank — Hero Card */}
                     {stats?.aesthetic_rank != null && (
-                        <Card className="overflow-hidden border-0 bg-gradient-to-br from-primary/20 via-primary/10 to-background">
-                            <CardContent className="py-6 text-center relative">
-                                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 to-transparent" />
-                                <div className="relative z-10">
-                                    <Trophy className="size-8 text-primary mx-auto mb-2" />
-                                    <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-1">
-                                        Aesthetic Rank
-                                    </p>
-                                    <p className="text-4xl font-black tracking-tight">
-                                        Top {stats.aesthetic_rank}%
-                                    </p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        vs. population average
-                                    </p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <AestheticRankCard rank={stats.aesthetic_rank} />
                     )}
 
                     {/* Stats Bento Grid */}
@@ -760,6 +785,7 @@ export default function MePage() {
 
                     {/* FFMI Card */}
                     {stats?.ffmi != null && (
+                        <>
                         <Card className="border-border/40">
                             <CardContent className="py-4">
                                 <div className="flex items-center justify-between">
@@ -791,7 +817,7 @@ export default function MePage() {
                                     <div
                                         className="h-full rounded-full bg-gradient-to-r from-purple-500 to-purple-400 transition-all duration-700"
                                         style={{
-                                            width: `${Math.min((stats.ffmi / 30) * 100, 100)}%`,
+                                            width: `${Math.min(100, Math.max(0, ((stats.ffmi - 16) / (30 - 16)) * 100))}%`,
                                         }}
                                     />
                                 </div>
@@ -801,8 +827,27 @@ export default function MePage() {
                                     <span>25</span>
                                     <span>30+</span>
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setFfmiInfoOpen(true)}
+                                    className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+                                >
+                                    <Info className="size-3.5 shrink-0" />
+                                    How it&apos;s calculated
+                                </button>
                             </CardContent>
                         </Card>
+                        <Dialog open={ffmiInfoOpen} onOpenChange={setFfmiInfoOpen}>
+                            <DialogContent className="max-w-xs sm:max-w-sm">
+                                <DialogHeader>
+                                    <DialogTitle>FFMI</DialogTitle>
+                                </DialogHeader>
+                                <p className="text-sm text-muted-foreground">
+                                    Fat-Free Mass Index: lean mass ÷ height², normalized for height. Uses your weight, height, and body fat % (Navy formula from waist/neck/height, or manual). Good for tracking muscle relative to size; body fat is estimated so FFMI is an estimate—reliable for trends, not absolute precision.
+                                </p>
+                            </DialogContent>
+                        </Dialog>
+                        </>
                     )}
 
                     {/* Weight Trend Chart */}
@@ -814,26 +859,23 @@ export default function MePage() {
                                         <TrendingUp className="size-4 text-primary" />
                                         Weight Trend
                                     </CardTitle>
-                                    <div className="flex flex-wrap gap-1">
-                                        {([
-                                            { days: 7, label: "7d" },
-                                            { days: 30, label: "30d" },
-                                            { days: 90, label: "90d" },
-                                            { days: 180, label: "6m" },
-                                            { days: 365, label: "1y" },
-                                            { days: 730, label: "2y" },
-                                        ]).map(({ days, label }) => (
-                                            <Button
-                                                key={days}
-                                                variant={historyDays === days ? "default" : "ghost"}
-                                                size="sm"
-                                                className="h-7 rounded-lg px-2.5 text-xs"
-                                                onClick={() => setHistoryDays(days)}
-                                            >
-                                                {label}
-                                            </Button>
-                                        ))}
-                                    </div>
+                                    <Select
+                                        value={String(historyDays)}
+                                        onValueChange={(v) => setHistoryDays(Number(v))}
+                                    >
+                                        <SelectTrigger className="h-8 w-[100px] rounded-lg text-xs">
+                                            <SelectValue placeholder="Range" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="7">7 days</SelectItem>
+                                            <SelectItem value="14">14 days</SelectItem>
+                                            <SelectItem value="30">30 days</SelectItem>
+                                            <SelectItem value="90">90 days</SelectItem>
+                                            <SelectItem value="180">6 months</SelectItem>
+                                            <SelectItem value="365">1 year</SelectItem>
+                                            <SelectItem value="730">2 years</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </CardHeader>
                             <CardContent>

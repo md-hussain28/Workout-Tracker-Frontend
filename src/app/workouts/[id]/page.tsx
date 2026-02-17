@@ -29,12 +29,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -92,7 +86,7 @@ function PrToast({ prType, onDismiss }: { prType: string; onDismiss: () => void 
 import { WorkoutExerciseCard } from "@/components/workouts/WorkoutExerciseCard";
 import { ExerciseHistorySheet } from "@/components/workouts/ExerciseHistorySheet";
 
-// ── Exercise Picker (Bottom Sheet) ──
+// ── Exercise Picker (Modal – works well on mobile, no auto keyboard) ──
 function ExercisePickerModal({
   workoutId,
   existingExerciseIds,
@@ -147,35 +141,33 @@ function ExercisePickerModal({
   }
 
   return (
-    <Sheet open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setSearch(""); }}>
-      <SheetContent
-        side="bottom"
-        className="rounded-t-3xl border-t pt-6 pb-[max(env(safe-area-inset-bottom),24px)] max-h-[85dvh] flex flex-col"
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setSearch(""); }}>
+      <DialogContent
+        className="flex max-h-[85dvh] w-[calc(100%-2rem)] max-w-lg flex-col gap-0 overflow-hidden p-0 sm:max-h-[80vh]"
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <SheetHeader>
-          <SheetTitle>Add Exercise</SheetTitle>
-        </SheetHeader>
-        <div className="px-4 pt-2 pb-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+        <DialogHeader className="shrink-0 border-b px-4 py-4 pb-3">
+          <DialogTitle>Add Exercise</DialogTitle>
+          <div className="relative pt-2">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search exercises..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 rounded-xl bg-muted/50 border-muted"
-              autoFocus
+              className="border-muted bg-muted/50 pl-10 rounded-xl"
+              autoComplete="off"
             />
           </div>
-        </div>
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
+        </DialogHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 pb-6">
           {filtered.length === 0 && (
-            <p className="text-center py-8 text-muted-foreground text-sm">
+            <p className="py-8 text-center text-sm text-muted-foreground">
               No exercises found.
             </p>
           )}
           {Array.from(grouped.entries()).map(([group, exs]) => (
             <div key={group} className="mb-3">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-1 py-1.5 sticky top-0 bg-background/95 backdrop-blur z-10">
+              <p className="sticky top-0 z-10 bg-background/95 px-1 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur">
                 {group}
               </p>
               <div className="space-y-0.5">
@@ -187,12 +179,12 @@ function ExercisePickerModal({
                       type="button"
                       onClick={() => handleSelect(ex)}
                       disabled={addSetMutation.isPending || alreadyAdded}
-                      className="w-full flex items-center justify-between py-3 px-3 rounded-xl hover:bg-muted/50 active:bg-muted transition-colors text-left disabled:opacity-50 disabled:pointer-events-none"
+                      className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left transition-colors hover:bg-muted/50 active:bg-muted disabled:pointer-events-none disabled:opacity-50"
                     >
                       <div>
-                        <p className="font-medium text-sm">{ex.name}</p>
+                        <p className="text-sm font-medium">{ex.name}</p>
                         {alreadyAdded && (
-                          <Badge variant="outline" className="text-[10px] py-0 mt-0.5">already in workout</Badge>
+                          <Badge variant="outline" className="mt-0.5 py-0 text-[10px]">already in workout</Badge>
                         )}
                       </div>
                       <Plus className="size-5 text-muted-foreground" />
@@ -203,8 +195,8 @@ function ExercisePickerModal({
             </div>
           ))}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 
