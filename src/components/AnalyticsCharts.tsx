@@ -3,6 +3,8 @@
 import {
     LineChart,
     Line,
+    AreaChart,
+    Area,
     XAxis,
     YAxis,
     Tooltip,
@@ -21,7 +23,7 @@ import {
     Radar,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { TrendingUp, PieChart as PieIcon, BarChart as BarIcon, Activity, Flame } from "lucide-react";
+import { TrendingUp, PieChart as PieIcon, BarChart as BarIcon, Activity, Flame, Calendar } from "lucide-react";
 
 // --- Types ---
 interface VolumeHistoryData {
@@ -153,12 +155,95 @@ export function VolumeGrowthChart({ data }: { data: VolumeHistoryData[] }) {
                                     name={key}
                                     stroke={COLORS[index % COLORS.length]}
                                     strokeWidth={2.5}
-                                    dot={false}
+                                    dot={{ r: 3.5, fill: COLORS[index % COLORS.length], strokeWidth: 0 }}
                                     activeDot={{ r: 6, strokeWidth: 2, stroke: "hsl(var(--background))" }}
-                                    connectNulls={false}
+                                    connectNulls={true}
                                 />
                             ))}
                         </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+/** Total volume (all muscles combined) over time as a filled area. */
+export function TotalVolumeChart({ data }: { data: VolumeHistoryData[] }) {
+    if (!data || data.length === 0) return <EmptyState title="Total Volume" icon={TrendingUp} />;
+
+    const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date));
+    const totalSeries = sortedData.map((row) => {
+        const keys = Object.keys(row).filter((k) => k !== "date");
+        const total = keys.reduce((sum, k) => sum + (Number(row[k]) || 0), 0);
+        return { date: row.date, total: total || 0 };
+    });
+
+    const gridStroke = "hsl(var(--border) / 0.5)";
+    const tooltipBg = "hsl(var(--card))";
+    const tooltipBorder = "hsl(var(--border))";
+    const primaryFill = "hsl(var(--primary) / 0.25)";
+    const primaryStroke = "hsl(var(--primary))";
+
+    return (
+        <Card className="rounded-2xl border-border/80 shadow-sm overflow-hidden">
+            <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                    <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                        <TrendingUp className="size-5" />
+                    </div>
+                    Total Volume
+                </CardTitle>
+                <CardDescription className="text-muted-foreground">
+                    Combined volume (weight × reps) across all muscle groups per day.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+                <div className="h-[260px] w-full rounded-xl bg-muted/10 p-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={totalSeries} margin={{ top: 12, right: 12, left: -8, bottom: 0 }}>
+                            <defs>
+                                <linearGradient id="totalVolumeGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+                            <XAxis
+                                dataKey="date"
+                                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                                tickFormatter={(v) => new Date(v).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                                axisLine={false}
+                                tickLine={false}
+                            />
+                            <YAxis
+                                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                                width={40}
+                                axisLine={false}
+                                tickLine={false}
+                                tickFormatter={(v) => (Number(v) >= 1000 ? `${(Number(v) / 1000).toFixed(1)}k` : String(v))}
+                            />
+                            <Tooltip
+                                contentStyle={{
+                                    backgroundColor: tooltipBg,
+                                    border: `1px solid ${tooltipBorder}`,
+                                    borderRadius: "1rem",
+                                    fontSize: 13,
+                                    boxShadow: "0 10px 40px -10px rgba(0,0,0,0.15)",
+                                }}
+                                labelFormatter={(v) => new Date(v).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                                formatter={(value) => [Number(value ?? 0).toLocaleString(), "Volume"]}
+                                cursor={{ stroke: gridStroke, strokeWidth: 1 }}
+                            />
+                            <Area
+                                type="monotone"
+                                dataKey="total"
+                                name="Volume"
+                                stroke={primaryStroke}
+                                strokeWidth={2}
+                                fill="url(#totalVolumeGradient)"
+                            />
+                        </AreaChart>
                     </ResponsiveContainer>
                 </div>
             </CardContent>
@@ -170,7 +255,7 @@ export function MuscleSplitChart({ data }: { data: MuscleSplitData[] }) {
     if (!data || data.length === 0) return <EmptyState title="Muscle Split" icon={PieIcon} />;
 
     return (
-        <Card>
+        <Card className="rounded-2xl border-border/80 shadow-sm overflow-hidden">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <PieIcon className="size-5 text-primary" />
@@ -211,7 +296,7 @@ export function RepDensityChart({ data }: { data: DensityData[] }) {
     const keys = Array.from(new Set(data.flatMap(Object.keys).filter((k) => k !== "date")));
 
     return (
-        <Card>
+        <Card className="rounded-2xl border-border/80 shadow-sm overflow-hidden">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <BarIcon className="size-5 text-primary" />
@@ -246,7 +331,7 @@ export function RepDensityChart({ data }: { data: DensityData[] }) {
 export function CaloriesBurnedChart({ data, emptyMessage }: { data: CaloriesHistoryEntry[]; emptyMessage?: string }) {
     if (!data || data.length === 0) {
         return (
-            <Card className="col-span-1 lg:col-span-2">
+            <Card className="col-span-1 lg:col-span-2 rounded-2xl border-border/80">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Flame className="size-5 text-primary" />
@@ -267,7 +352,7 @@ export function CaloriesBurnedChart({ data, emptyMessage }: { data: CaloriesHist
     }
 
     return (
-        <Card className="col-span-1 lg:col-span-2">
+        <Card className="col-span-1 lg:col-span-2 rounded-2xl border-border/80 shadow-sm overflow-hidden">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Flame className="size-5 text-primary" />
@@ -300,7 +385,7 @@ export function CaloriesBurnedChart({ data, emptyMessage }: { data: CaloriesHist
 export function CaloriesSummaryCard({ data }: { data: CaloriesSummaryData | null | undefined }) {
     if (data == null) return null;
     return (
-        <Card>
+        <Card className="rounded-2xl border-border/80 shadow-sm overflow-hidden">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Flame className="size-5 text-primary" />
@@ -332,7 +417,7 @@ export function PlateauRadarChart({ data }: { data: RadarData[] }) {
     if (!data || data.length === 0) return <EmptyState title="Exercise Plateau" icon={Activity} />;
 
     return (
-        <Card className="col-span-1 lg:col-span-2">
+        <Card className="col-span-1 lg:col-span-2 rounded-2xl border-border/80 shadow-sm overflow-hidden">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Activity className="size-5 text-primary" />
@@ -364,6 +449,146 @@ export function PlateauRadarChart({ data }: { data: RadarData[] }) {
                         <Tooltip />
                     </RadarChart>
                 </ResponsiveContainer>
+            </CardContent>
+        </Card>
+    );
+}
+
+export interface ConsistencyDay {
+    date: string;
+    duration_seconds: number | null;
+    tonnage: number;
+}
+
+/** Heatmap calendar: workout consistency by day. Intensity by tonnage. */
+export function ConsistencyHeatmap({
+    year,
+    month,
+    days,
+    className,
+}: {
+    year: number;
+    month?: number | null;
+    days: ConsistencyDay[];
+    className?: string;
+}) {
+    const byDate = Object.fromEntries(days.map((d) => [d.date, d]));
+    const maxTonnage = Math.max(1, ...days.map((d) => d.tonnage));
+
+    if (month != null) {
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const firstDay = new Date(year, month - 1, 1).getDay();
+        const cells: { date: string | null; day: number }[] = [];
+        for (let i = 0; i < firstDay; i++) cells.push({ date: null, day: 0 });
+        for (let d = 1; d <= daysInMonth; d++) {
+            const date = `${year}-${month.toString().padStart(2, "0")}-${d.toString().padStart(2, "0")}`;
+            cells.push({ date, day: d });
+        }
+        const weekDays = ["S", "M", "T", "W", "T", "F", "S"];
+        return (
+            <Card className={className}>
+                <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                        <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                            <Calendar className="size-5" />
+                        </div>
+                        Consistency
+                    </CardTitle>
+                    <CardDescription className="text-muted-foreground">
+                        Workout days — darker = more volume (tonnage).
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-7 gap-1 text-center text-muted-foreground text-[10px] font-medium mb-1.5">
+                        {weekDays.map((w) => (
+                            <span key={w}>{w}</span>
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-7 gap-1">
+                        {cells.map(({ date, day }, i) => {
+                            if (!date)
+                                return <div key={`e-${i}`} className="aspect-square rounded-md bg-transparent" />;
+                            const data = byDate[date];
+                            const hasWorkout = !!data;
+                            const intensity = hasWorkout && maxTonnage > 0 ? data.tonnage / maxTonnage : 0;
+                            return (
+                                <div
+                                    key={date}
+                                    className="aspect-square rounded-md flex items-center justify-center text-[10px] font-medium transition-transform hover:scale-105"
+                                    style={{
+                                        backgroundColor: hasWorkout
+                                            ? `hsl(var(--primary) / ${0.2 + 0.7 * intensity})`
+                                            : "hsl(var(--muted) / 0.4)",
+                                        color: hasWorkout ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+                                    }}
+                                    title={hasWorkout ? `${data.tonnage ? `${Math.round(data.tonnage)} kg volume` : "Workout"}${data.duration_seconds ? ` · ${Math.round(data.duration_seconds / 60)} min` : ""}` : undefined}
+                                >
+                                    {day}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    const monthLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return (
+        <Card className={className}>
+            <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                    <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                        <Calendar className="size-5" />
+                    </div>
+                    {year} — Consistency
+                </CardTitle>
+                <CardDescription className="text-muted-foreground">
+                    Workout days by month. Darker = more volume.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid grid-cols-4 gap-4">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => {
+                        const daysInMonth = new Date(year, m, 0).getDate();
+                        const firstDay = new Date(year, m - 1, 1).getDay();
+                        const cells: { date: string | null; day: number }[] = [];
+                        for (let i = 0; i < firstDay; i++) cells.push({ date: null, day: 0 });
+                        for (let d = 1; d <= daysInMonth; d++) {
+                            const date = `${year}-${m.toString().padStart(2, "0")}-${d.toString().padStart(2, "0")}`;
+                            cells.push({ date, day: d });
+                        }
+                        return (
+                            <div key={m} className="space-y-1">
+                                <p className="text-[10px] font-semibold text-muted-foreground">{monthLabels[m - 1]}</p>
+                                <div className="grid grid-cols-7 gap-0.5">
+                                    {cells.map(({ date, day }, i) => {
+                                        if (!date)
+                                            return <div key={`e-${i}`} className="aspect-square rounded bg-transparent min-w-[10px]" />;
+                                        const data = byDate[date];
+                                        const hasWorkout = !!data;
+                                        const intensity = hasWorkout && maxTonnage > 0 ? data.tonnage / maxTonnage : 0;
+                                        return (
+                                            <div
+                                                key={date}
+                                                className="aspect-square rounded min-w-[10px] flex items-center justify-center text-[8px] font-medium"
+                                                style={{
+                                                    backgroundColor: hasWorkout
+                                                        ? `hsl(var(--primary) / ${0.25 + 0.6 * intensity})`
+                                                        : "hsl(var(--muted) / 0.35)",
+                                                    color: hasWorkout ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+                                                }}
+                                                title={hasWorkout ? `${Math.round(data.tonnage)} kg` : undefined}
+                                            >
+                                                {day}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </CardContent>
         </Card>
     );

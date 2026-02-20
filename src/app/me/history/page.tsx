@@ -35,6 +35,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { NumericKeypad } from "@/components/workouts/NumericKeypad";
+import { cn } from "@/lib/utils";
 
 // Lazy-load chart
 import BodyPartChart from "../../../components/me/BodyPartChart";
@@ -97,6 +99,8 @@ function EditLogDialog({
     );
 }
 
+type ActiveNumericField = "weight" | "body_fat" | string; // string = measurement key
+
 function EditableLogForm({ log, onSuccess }: { log: BodyLog; onSuccess: () => void }) {
     const queryClient = useQueryClient();
     const [weight, setWeight] = useState(log.weight_kg.toString());
@@ -116,6 +120,7 @@ function EditableLogForm({ log, onSuccess }: { log: BodyLog; onSuccess: () => vo
         }
         return m;
     });
+    const [activeField, setActiveField] = useState<ActiveNumericField | null>(null);
 
     const mutation = useMutation({
         mutationFn: (data: BodyLogUpdate) => api.body.updateLog(log.id, data),
@@ -156,6 +161,17 @@ function EditableLogForm({ log, onSuccess }: { log: BodyLog; onSuccess: () => vo
         mutation.mutate(toSend);
     };
 
+    const activeValue =
+        activeField === "weight" ? weight
+        : activeField === "body_fat" ? bodyFat
+        : activeField != null && MEASUREMENT_KEYS.some((b) => b.key === activeField) ? (measurements[activeField] ?? "")
+        : "";
+    const setActiveValue =
+        activeField === "weight" ? setWeight
+        : activeField === "body_fat" ? setBodyFat
+        : activeField != null ? (v: string) => setMeasurements((prev) => ({ ...prev, [activeField]: v }))
+        : () => {};
+
     return (
         <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
@@ -171,33 +187,34 @@ function EditableLogForm({ log, onSuccess }: { log: BodyLog; onSuccess: () => vo
                 />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-weight" className="text-right">
-                    Weight
-                </Label>
+                <Label className="text-right">Weight</Label>
                 <div className="col-span-3 flex items-center gap-2">
-                    <Input
-                        id="edit-weight"
-                        type="number"
-                        step="0.1"
-                        value={weight}
-                        onChange={(e) => setWeight(e.target.value)}
-                    />
+                    <button
+                        type="button"
+                        onClick={() => setActiveField("weight")}
+                        className={cn(
+                            "h-9 rounded-lg text-center font-mono text-base tabular-nums bg-background border border-input px-3 min-w-[80px] flex items-center justify-center",
+                            activeField === "weight" && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                        )}
+                    >
+                        {weight || <span className="text-muted-foreground text-sm">kg</span>}
+                    </button>
                     <span className="text-sm text-muted-foreground">kg</span>
                 </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-bodyfat" className="text-right">
-                    Body Fat
-                </Label>
+                <Label className="text-right">Body Fat</Label>
                 <div className="col-span-3 flex items-center gap-2">
-                    <Input
-                        id="edit-bodyfat"
-                        type="number"
-                        step="0.1"
-                        value={bodyFat}
-                        onChange={(e) => setBodyFat(e.target.value)}
-                        placeholder="Optional"
-                    />
+                    <button
+                        type="button"
+                        onClick={() => setActiveField("body_fat")}
+                        className={cn(
+                            "h-9 rounded-lg text-center font-mono text-base tabular-nums bg-background border border-input px-3 min-w-[80px] flex items-center justify-center",
+                            activeField === "body_fat" && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                        )}
+                    >
+                        {bodyFat || <span className="text-muted-foreground text-sm">%</span>}
+                    </button>
                     <span className="text-sm text-muted-foreground">%</span>
                 </div>
             </div>
@@ -207,27 +224,36 @@ function EditableLogForm({ log, onSuccess }: { log: BodyLog; onSuccess: () => vo
                 <div className="grid grid-cols-2 gap-2">
                     {MEASUREMENT_KEYS.map((bp) => (
                         <div key={bp.key} className="space-y-1">
-                            <Label htmlFor={`edit-${bp.key}`} className="text-xs text-muted-foreground">
-                                {bp.label}
-                            </Label>
-                            <Input
-                                id={`edit-${bp.key}`}
-                                type="number"
-                                step="0.1"
-                                className="h-8"
-                                placeholder="-"
-                                value={measurements[bp.key] || ""}
-                                onChange={(e) =>
-                                    setMeasurements((prev) => ({
-                                        ...prev,
-                                        [bp.key]: e.target.value,
-                                    }))
-                                }
-                            />
+                            <Label className="text-xs text-muted-foreground">{bp.label}</Label>
+                            <button
+                                type="button"
+                                onClick={() => setActiveField(bp.key)}
+                                className={cn(
+                                    "h-8 w-full rounded-lg text-center font-mono text-sm tabular-nums bg-background border border-input px-2",
+                                    activeField === bp.key && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                                )}
+                            >
+                                {measurements[bp.key] || <span className="text-muted-foreground text-xs">—</span>}
+                            </button>
                         </div>
                     ))}
                 </div>
             </div>
+
+            {activeField != null && (
+                <div className="pt-2 border-t">
+                    <p className="text-xs text-muted-foreground mb-2">
+                        {activeField === "weight" ? "Weight" : activeField === "body_fat" ? "Body Fat" : BODY_PARTS.find((p) => p.key === activeField)?.label ?? activeField}
+                    </p>
+                    <NumericKeypad
+                        value={activeValue}
+                        onChange={setActiveValue}
+                        onDone={() => setActiveField(null)}
+                        allowDecimal={true}
+                        showWeightSteppers={activeField === "weight"}
+                    />
+                </div>
+            )}
 
             <div className="flex justify-end gap-2 mt-4">
                 <Button onClick={handleSave} disabled={mutation.isPending}>
@@ -360,7 +386,6 @@ import {
     SelectLabel,
     SelectSeparator
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 
 const BODY_GROUPS = [
     {

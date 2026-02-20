@@ -277,6 +277,7 @@ export default function WorkoutDetailPage() {
   const workoutId = params.id;
   const [exercisePickerOpen, setExercisePickerOpen] = useState(false);
   const [editingDate, setEditingDate] = useState(false);
+  const [editingEndDate, setEditingEndDate] = useState(false);
   const [historyExercise, setHistoryExercise] = useState<{ id: string; name: string } | null>(null);
   const [endDialogOpen, setEndDialogOpen] = useState(false);
 
@@ -354,6 +355,25 @@ export default function WorkoutDetailPage() {
     return local.toISOString().slice(0, 16);
   })();
 
+  const endedLocalIso = workout.ended_at
+    ? (() => {
+        const d = new Date(workout.ended_at);
+        const offset = d.getTimezoneOffset();
+        const local = new Date(d.getTime() - offset * 60000);
+        return local.toISOString().slice(0, 16);
+      })()
+    : "";
+
+  const endedDisplay = workout.ended_at
+    ? new Date(workout.ended_at).toLocaleDateString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+
   async function handleDateChange(value: string) {
     if (!value) return;
     const newDate = new Date(value).toISOString();
@@ -365,6 +385,25 @@ export default function WorkoutDetailPage() {
     setEditingDate(false);
     try {
       await api.workouts.update(workoutId, { started_at: newDate });
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ["workout", workoutId] });
+      queryClient.invalidateQueries({ queryKey: ["workouts"] });
+    }
+  }
+
+  async function handleEndDateChange(value: string) {
+    if (!value) return;
+    const newDate = new Date(value).toISOString();
+    queryClient.setQueryData<WorkoutWithSets>(["workout", workoutId], (old) => {
+      if (!old) return old;
+      const started = new Date(old.started_at).getTime();
+      const ended = new Date(newDate).getTime();
+      const duration_seconds = Math.max(0, Math.floor((ended - started) / 1000));
+      return { ...old, ended_at: newDate, duration_seconds };
+    });
+    setEditingEndDate(false);
+    try {
+      await api.workouts.update(workoutId, { ended_at: newDate });
     } finally {
       queryClient.invalidateQueries({ queryKey: ["workout", workoutId] });
       queryClient.invalidateQueries({ queryKey: ["workouts"] });
@@ -398,9 +437,34 @@ export default function WorkoutDetailPage() {
               className="flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground transition-colors group"
             >
               <CalendarDays className="size-3.5 opacity-50 group-hover:opacity-100" />
-              {started}
+              Started: {started}
               <Pencil className="size-3 opacity-0 group-hover:opacity-50" />
             </button>
+          )}
+          {!isActive && endedDisplay && (
+            editingEndDate ? (
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="datetime-local"
+                  defaultValue={endedLocalIso}
+                  onChange={(e) => handleEndDateChange(e.target.value)}
+                  className="text-sm rounded-lg border border-border bg-background px-2 py-1"
+                  autoFocus
+                />
+                <Button size="sm" variant="ghost" className="size-7 p-0" onClick={() => setEditingEndDate(false)}>
+                  <X className="size-4" />
+                </Button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setEditingEndDate(true)}
+                className="flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground transition-colors group mt-0.5"
+              >
+                <CalendarDays className="size-3.5 opacity-50 group-hover:opacity-100" />
+                Ended: {endedDisplay}
+                <Pencil className="size-3 opacity-0 group-hover:opacity-50" />
+              </button>
+            )
           )}
           {workout.notes && (
             <p className="text-muted-foreground text-sm mt-0.5">{workout.notes}</p>
