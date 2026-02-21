@@ -641,9 +641,9 @@ export default function MePage() {
 
     const BF_KEYS = ["bf_army", "bf_cun_bae", "bf_rfm", "bf_multi", "bf_navy"] as const;
     const currentBF = useMemo(() => {
-        const cs = stats ?? history.find((l) => l.computed_stats && BF_KEYS.some((k) => (l.computed_stats as Record<string, number | null>)[k] != null))?.computed_stats;
+        const cs = stats ?? history.find((l) => l.computed_stats && BF_KEYS.some((k) => (l.computed_stats as unknown as Record<string, number | null>)[k] != null))?.computed_stats;
         if (!cs) return undefined;
-        const raw = cs as Record<string, number | null>;
+        const raw = cs as unknown as Record<string, number | null>;
         const values = BF_KEYS.map((k) => raw[k]).filter((v): v is number => typeof v === "number");
         if (values.length === 0) return undefined;
         return Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10;
