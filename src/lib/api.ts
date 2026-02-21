@@ -503,6 +503,10 @@ export interface Measurements {
 export interface ComputedStats {
   bmr: number | null;
   bf_navy: number | null;
+  bf_army?: number | null;
+  bf_cun_bae?: number | null;
+  bf_rfm?: number | null;
+  bf_multi?: number | null;
   ffmi: number | null;
   percentiles: Record<string, number>;
   aesthetic_rank: number | null;

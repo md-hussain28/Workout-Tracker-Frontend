@@ -182,8 +182,7 @@ export function TotalVolumeChart({ data }: { data: VolumeHistoryData[] }) {
     const gridStroke = "hsl(var(--border) / 0.5)";
     const tooltipBg = "hsl(var(--card))";
     const tooltipBorder = "hsl(var(--border))";
-    const primaryFill = "hsl(var(--primary) / 0.25)";
-    const primaryStroke = "hsl(var(--primary))";
+    const primaryStroke = "hsl(var(--chart-2))"; // Vivid cyan
 
     return (
         <Card className="rounded-2xl border-border/80 shadow-sm overflow-hidden">
@@ -204,8 +203,8 @@ export function TotalVolumeChart({ data }: { data: VolumeHistoryData[] }) {
                         <AreaChart data={totalSeries} margin={{ top: 12, right: 12, left: -8, bottom: 0 }}>
                             <defs>
                                 <linearGradient id="totalVolumeGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-                                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                                    <stop offset="5%" stopColor={primaryStroke} stopOpacity={0.8} />
+                                    <stop offset="95%" stopColor={primaryStroke} stopOpacity={0.05} />
                                 </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
@@ -460,14 +459,11 @@ export interface ConsistencyDay {
     tonnage: number;
 }
 
-/** Heatmap calendar: workout consistency by day. Intensity by tonnage. */
 export function ConsistencyHeatmap({
-    year,
-    month,
     days,
     className,
 }: {
-    year: number;
+    year?: number;
     month?: number | null;
     days: ConsistencyDay[];
     className?: string;
@@ -475,65 +471,44 @@ export function ConsistencyHeatmap({
     const byDate = Object.fromEntries(days.map((d) => [d.date, d]));
     const maxTonnage = Math.max(1, ...days.map((d) => d.tonnage));
 
-    if (month != null) {
-        const daysInMonth = new Date(year, month, 0).getDate();
-        const firstDay = new Date(year, month - 1, 1).getDay();
-        const cells: { date: string | null; day: number }[] = [];
-        for (let i = 0; i < firstDay; i++) cells.push({ date: null, day: 0 });
-        for (let d = 1; d <= daysInMonth; d++) {
-            const date = `${year}-${month.toString().padStart(2, "0")}-${d.toString().padStart(2, "0")}`;
-            cells.push({ date, day: d });
+    // Calculate the last 365 days
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Find the start date (365 days ago, adjusted to start on a Sunday)
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - 364);
+    const startDayOfWeek = startDate.getDay();
+    startDate.setDate(startDate.getDate() - startDayOfWeek);
+
+    const weeks: { dateStr: string; isFuture: boolean }[][] = [];
+    const currentDate = new Date(startDate);
+
+    while (currentDate <= today || currentDate.getDay() !== 0) {
+        if (currentDate.getDay() === 0) {
+            weeks.push([]);
         }
-        const weekDays = ["S", "M", "T", "W", "T", "F", "S"];
-        return (
-            <Card className={className}>
-                <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                        <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                            <Calendar className="size-5" />
-                        </div>
-                        Consistency
-                    </CardTitle>
-                    <CardDescription className="text-muted-foreground">
-                        Workout days — darker = more volume (tonnage).
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-7 gap-1 text-center text-muted-foreground text-[10px] font-medium mb-1.5">
-                        {weekDays.map((w) => (
-                            <span key={w}>{w}</span>
-                        ))}
-                    </div>
-                    <div className="grid grid-cols-7 gap-1">
-                        {cells.map(({ date, day }, i) => {
-                            if (!date)
-                                return <div key={`e-${i}`} className="aspect-square rounded-md bg-transparent" />;
-                            const data = byDate[date];
-                            const hasWorkout = !!data;
-                            const intensity = hasWorkout && maxTonnage > 0 ? data.tonnage / maxTonnage : 0;
-                            return (
-                                <div
-                                    key={date}
-                                    className="aspect-square rounded-md flex items-center justify-center text-[10px] font-medium transition-transform hover:scale-105"
-                                    style={{
-                                        backgroundColor: hasWorkout
-                                            ? `hsl(var(--primary) / ${0.2 + 0.7 * intensity})`
-                                            : "hsl(var(--muted) / 0.4)",
-                                        color: hasWorkout ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
-                                    }}
-                                    title={hasWorkout ? `${data.tonnage ? `${Math.round(data.tonnage)} kg volume` : "Workout"}${data.duration_seconds ? ` · ${Math.round(data.duration_seconds / 60)} min` : ""}` : undefined}
-                                >
-                                    {day}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </CardContent>
-            </Card>
-        );
+
+        const year = currentDate.getFullYear();
+        const m = String(currentDate.getMonth() + 1).padStart(2, "0");
+        const d = String(currentDate.getDate()).padStart(2, "0");
+        const dateStr = `${year}-${m}-${d}`;
+
+        weeks[weeks.length - 1].push({
+            dateStr,
+            isFuture: currentDate > today,
+        });
+
+        currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    const monthLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    // Ensure all weeks have 7 days
+    while (weeks[weeks.length - 1] && weeks[weeks.length - 1].length < 7) {
+        weeks[weeks.length - 1].push({ dateStr: "", isFuture: true });
+    }
+
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
     return (
         <Card className={className}>
             <CardHeader className="pb-2">
@@ -541,53 +516,68 @@ export function ConsistencyHeatmap({
                     <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <Calendar className="size-5" />
                     </div>
-                    {year} — Consistency
+                    Consistency Grid
                 </CardTitle>
                 <CardDescription className="text-muted-foreground">
-                    Workout days by month. Darker = more volume.
+                    Last 365 days of activity. Darker squares indicate higher volume.
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="grid grid-cols-4 gap-4">
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => {
-                        const daysInMonth = new Date(year, m, 0).getDate();
-                        const firstDay = new Date(year, m - 1, 1).getDay();
-                        const cells: { date: string | null; day: number }[] = [];
-                        for (let i = 0; i < firstDay; i++) cells.push({ date: null, day: 0 });
-                        for (let d = 1; d <= daysInMonth; d++) {
-                            const date = `${year}-${m.toString().padStart(2, "0")}-${d.toString().padStart(2, "0")}`;
-                            cells.push({ date, day: d });
-                        }
-                        return (
-                            <div key={m} className="space-y-1">
-                                <p className="text-[10px] font-semibold text-muted-foreground">{monthLabels[m - 1]}</p>
-                                <div className="grid grid-cols-7 gap-0.5">
-                                    {cells.map(({ date, day }, i) => {
-                                        if (!date)
-                                            return <div key={`e-${i}`} className="aspect-square rounded bg-transparent min-w-[10px]" />;
-                                        const data = byDate[date];
+                <div className="flex items-start gap-2 overflow-x-auto pb-4 scrollbar-hide">
+                    {/* Y-axis labels */}
+                    <div className="flex flex-col gap-[3px] py-[15px] pt-[22px] text-[10px] font-medium text-muted-foreground">
+                        <span className="h-3"></span>
+                        <span className="h-3 leading-3">Mon</span>
+                        <span className="h-3"></span>
+                        <span className="h-3 leading-3">Wed</span>
+                        <span className="h-3"></span>
+                        <span className="h-3 leading-3">Fri</span>
+                        <span className="h-3"></span>
+                    </div>
+
+                    <div className="flex flex-col gap-1 w-full relative">
+                        {/* X-axis labels (Months) */}
+                        <div className="flex text-[10px] font-medium text-muted-foreground h-4 relative w-full">
+                            {weeks.map((week, i) => {
+                                if (i === 0 || (week[0]?.dateStr && weeks[i - 1][0]?.dateStr && new Date(week[0].dateStr).getMonth() !== new Date(weeks[i - 1][0].dateStr).getMonth())) {
+                                    return (
+                                        <div key={`month-${i}`} style={{ position: 'absolute', left: `${i * 15}px`, width: 'max-content' }}>
+                                            {week[0]?.dateStr ? months[new Date(week[0].dateStr).getMonth()] : ""}
+                                        </div>
+                                    );
+                                }
+                                return null;
+                            })}
+                        </div>
+
+                        {/* Grid */}
+                        <div className="flex gap-[3px]">
+                            {weeks.map((week, weekIdx) => (
+                                <div key={weekIdx} className="flex flex-col gap-[3px]">
+                                    {week.map((day, dayIdx) => {
+                                        if (day.isFuture || !day.dateStr) {
+                                            return <div key={dayIdx} className="size-3 rounded-[2px] bg-transparent" />;
+                                        }
+                                        const data = byDate[day.dateStr];
                                         const hasWorkout = !!data;
-                                        const intensity = hasWorkout && maxTonnage > 0 ? data.tonnage / maxTonnage : 0;
+                                        const intensity = hasWorkout && maxTonnage > 0 ? Math.min(1, data.tonnage / maxTonnage) : 0;
                                         return (
                                             <div
-                                                key={date}
-                                                className="aspect-square rounded min-w-[10px] flex items-center justify-center text-[8px] font-medium"
+                                                key={day.dateStr}
+                                                className="size-3 rounded-[2px] flex items-center justify-center transition-all hover:ring-1 cursor-crosshair z-0 hover:z-10 hover:ring-primary/50 hover:scale-125"
                                                 style={{
                                                     backgroundColor: hasWorkout
-                                                        ? `hsl(var(--primary) / ${0.25 + 0.6 * intensity})`
-                                                        : "hsl(var(--muted) / 0.35)",
-                                                    color: hasWorkout ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+                                                        ? `hsl(var(--chart-2) / ${0.3 + 0.7 * intensity})`
+                                                        : "hsl(var(--muted)/0.4)",
                                                 }}
-                                                title={hasWorkout ? `${Math.round(data.tonnage)} kg` : undefined}
-                                            >
-                                                {day}
-                                            </div>
+                                                title={hasWorkout ? `${new Date(day.dateStr).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}: ${Math.round(data.tonnage).toLocaleString()} kg` : `${new Date(day.dateStr).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}: Rest day`}
+                                            />
                                         );
                                     })}
                                 </div>
-                            </div>
-                        );
-                    })}
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </CardContent>
         </Card>

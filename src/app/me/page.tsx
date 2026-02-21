@@ -209,13 +209,13 @@ function BioSetupDialog({
                 data && typeof data === "object" && String((data as UserBio).id).length > 0
                     ? (data as UserBio)
                     : {
-                          id: DEFAULT_BIO_ID,
-                          height_cm: variables.height_cm,
-                          age: variables.age,
-                          sex: variables.sex,
-                          created_at: new Date().toISOString(),
-                          updated_at: new Date().toISOString(),
-                      };
+                        id: DEFAULT_BIO_ID,
+                        height_cm: variables.height_cm,
+                        age: variables.age,
+                        sex: variables.sex,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                    };
             setStoredBio(bioToSet);
             queryClient.setQueryData(["body-bio"], bioToSet);
             queryClient.invalidateQueries({ queryKey: ["body-latest"] });
@@ -770,14 +770,19 @@ export default function MePage() {
                                         color="text-orange-500"
                                         bgColor="bg-orange-500/10"
                                     />
-                                    <StatCard
-                                        icon={<TrendingUp className="size-4" />}
-                                        label="Body Fat"
-                                        value={currentBF ? `${currentBF}` : "—"}
-                                        unit="%"
-                                        color="text-emerald-500"
-                                        bgColor="bg-emerald-500/10"
-                                    />
+                                    <Link href="/me/body-fat" className="block relative transition-transform hover:scale-105 active:scale-95">
+                                        <StatCard
+                                            icon={<TrendingUp className="size-4" />}
+                                            label="Body Fat"
+                                            value={currentBF ? `${currentBF}` : "—"}
+                                            unit="%"
+                                            color="text-emerald-500"
+                                            bgColor="bg-emerald-500/10"
+                                        />
+                                        <div className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full bg-emerald-500/20">
+                                            <ChevronRight className="size-3 text-emerald-600" />
+                                        </div>
+                                    </Link>
                                 </>
                             )}
                         </div>
@@ -786,67 +791,67 @@ export default function MePage() {
                     {/* FFMI Card */}
                     {stats?.ffmi != null && (
                         <>
-                        <Card className="border-border/40">
-                            <CardContent className="py-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex size-10 items-center justify-center rounded-xl bg-purple-500/10">
-                                            <Dumbbell className="size-5 text-purple-500" />
+                            <Card className="border-border/40">
+                                <CardContent className="py-4">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex size-10 items-center justify-center rounded-xl bg-purple-500/10">
+                                                <Dumbbell className="size-5 text-purple-500" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium text-muted-foreground">
+                                                    FFMI
+                                                </p>
+                                                <p className="text-xl font-bold">{stats.ffmi}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-muted-foreground">
-                                                FFMI
-                                            </p>
-                                            <p className="text-xl font-bold">{stats.ffmi}</p>
-                                        </div>
+                                        <Badge
+                                            variant="secondary"
+                                            className="rounded-xl text-xs"
+                                        >
+                                            {stats.ffmi >= 25
+                                                ? "Elite"
+                                                : stats.ffmi >= 22
+                                                    ? "Advanced"
+                                                    : stats.ffmi >= 20
+                                                        ? "Intermediate"
+                                                        : "Beginner"}
+                                        </Badge>
                                     </div>
-                                    <Badge
-                                        variant="secondary"
-                                        className="rounded-xl text-xs"
+                                    <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
+                                        <div
+                                            className="h-full rounded-full bg-gradient-to-r from-purple-500 to-purple-400 transition-all duration-700"
+                                            style={{
+                                                width: `${Math.min(100, Math.max(0, ((stats.ffmi - 16) / (30 - 16)) * 100))}%`,
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+                                        <span>16</span>
+                                        <span>20</span>
+                                        <span>25</span>
+                                        <span>30+</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setFfmiInfoOpen(true)}
+                                        className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground"
                                     >
-                                        {stats.ffmi >= 25
-                                            ? "Elite"
-                                            : stats.ffmi >= 22
-                                                ? "Advanced"
-                                                : stats.ffmi >= 20
-                                                    ? "Intermediate"
-                                                    : "Beginner"}
-                                    </Badge>
-                                </div>
-                                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-                                    <div
-                                        className="h-full rounded-full bg-gradient-to-r from-purple-500 to-purple-400 transition-all duration-700"
-                                        style={{
-                                            width: `${Math.min(100, Math.max(0, ((stats.ffmi - 16) / (30 - 16)) * 100))}%`,
-                                        }}
-                                    />
-                                </div>
-                                <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
-                                    <span>16</span>
-                                    <span>20</span>
-                                    <span>25</span>
-                                    <span>30+</span>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setFfmiInfoOpen(true)}
-                                    className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground"
-                                >
-                                    <Info className="size-3.5 shrink-0" />
-                                    How it&apos;s calculated
-                                </button>
-                            </CardContent>
-                        </Card>
-                        <Dialog open={ffmiInfoOpen} onOpenChange={setFfmiInfoOpen}>
-                            <DialogContent className="max-w-xs sm:max-w-sm">
-                                <DialogHeader>
-                                    <DialogTitle>FFMI</DialogTitle>
-                                </DialogHeader>
-                                <p className="text-sm text-muted-foreground">
-                                    Fat-Free Mass Index: lean mass ÷ height², normalized for height. Uses your weight, height, and body fat % (Navy formula from waist/neck/height, or manual). Good for tracking muscle relative to size; body fat is estimated so FFMI is an estimate—reliable for trends, not absolute precision.
-                                </p>
-                            </DialogContent>
-                        </Dialog>
+                                        <Info className="size-3.5 shrink-0" />
+                                        How it&apos;s calculated
+                                    </button>
+                                </CardContent>
+                            </Card>
+                            <Dialog open={ffmiInfoOpen} onOpenChange={setFfmiInfoOpen}>
+                                <DialogContent className="max-w-xs sm:max-w-sm">
+                                    <DialogHeader>
+                                        <DialogTitle>FFMI</DialogTitle>
+                                    </DialogHeader>
+                                    <p className="text-sm text-muted-foreground">
+                                        Fat-Free Mass Index: lean mass ÷ height², normalized for height. Uses your weight, height, and body fat % (Navy formula from waist/neck/height, or manual). Good for tracking muscle relative to size; body fat is estimated so FFMI is an estimate—reliable for trends, not absolute precision.
+                                    </p>
+                                </DialogContent>
+                            </Dialog>
                         </>
                     )}
 

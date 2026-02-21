@@ -357,21 +357,21 @@ export default function WorkoutDetailPage() {
 
   const endedLocalIso = workout.ended_at
     ? (() => {
-        const d = new Date(workout.ended_at);
-        const offset = d.getTimezoneOffset();
-        const local = new Date(d.getTime() - offset * 60000);
-        return local.toISOString().slice(0, 16);
-      })()
+      const d = new Date(workout.ended_at);
+      const offset = d.getTimezoneOffset();
+      const local = new Date(d.getTime() - offset * 60000);
+      return local.toISOString().slice(0, 16);
+    })()
     : "";
 
   const endedDisplay = workout.ended_at
     ? new Date(workout.ended_at).toLocaleDateString(undefined, {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
     : null;
 
   async function handleDateChange(value: string) {
@@ -418,54 +418,61 @@ export default function WorkoutDetailPage() {
           <h1 className="text-xl font-semibold tracking-tight">
             {isActive ? "Workout" : "Workout Summary"}
           </h1>
-          {editingDate ? (
-            <div className="flex items-center gap-2 mt-1">
-              <input
-                type="datetime-local"
-                defaultValue={startedLocalIso}
-                onChange={(e) => handleDateChange(e.target.value)}
-                className="text-sm rounded-lg border border-border bg-background px-2 py-1"
-                autoFocus
-              />
-              <Button size="sm" variant="ghost" className="size-7 p-0" onClick={() => setEditingDate(false)}>
-                <X className="size-4" />
-              </Button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setEditingDate(true)}
-              className="flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground transition-colors group"
-            >
-              <CalendarDays className="size-3.5 opacity-50 group-hover:opacity-100" />
-              Started: {started}
-              <Pencil className="size-3 opacity-0 group-hover:opacity-50" />
-            </button>
-          )}
-          {!isActive && endedDisplay && (
-            editingEndDate ? (
-              <div className="flex items-center gap-2 mt-1">
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
+            {editingDate ? (
+              <div className="flex items-center gap-2">
                 <input
                   type="datetime-local"
-                  defaultValue={endedLocalIso}
-                  onChange={(e) => handleEndDateChange(e.target.value)}
-                  className="text-sm rounded-lg border border-border bg-background px-2 py-1"
+                  defaultValue={startedLocalIso}
+                  onChange={(e) => handleDateChange(e.target.value)}
+                  className="text-sm rounded-lg border border-border bg-background px-2 py-1 shadow-sm"
                   autoFocus
                 />
-                <Button size="sm" variant="ghost" className="size-7 p-0" onClick={() => setEditingEndDate(false)}>
+                <Button size="sm" variant="ghost" className="size-7 p-0" onClick={() => setEditingDate(false)}>
                   <X className="size-4" />
                 </Button>
               </div>
             ) : (
               <button
-                onClick={() => setEditingEndDate(true)}
-                className="flex items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground transition-colors group mt-0.5"
+                onClick={() => setEditingDate(true)}
+                className="flex items-center gap-1.5 rounded-md bg-muted/40 px-2.5 py-1 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground group border border-transparent hover:border-border/50"
               >
-                <CalendarDays className="size-3.5 opacity-50 group-hover:opacity-100" />
-                Ended: {endedDisplay}
-                <Pencil className="size-3 opacity-0 group-hover:opacity-50" />
+                <div className="flex size-4 items-center justify-center rounded-full bg-primary/10">
+                  <div className="size-1.5 rounded-full bg-primary" />
+                </div>
+                {started}
+                <Pencil className="size-3 opacity-0 group-hover:opacity-60 ml-0.5 transition-opacity" />
               </button>
-            )
-          )}
+            )}
+
+            {!isActive && endedDisplay && (
+              editingEndDate ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="datetime-local"
+                    defaultValue={endedLocalIso}
+                    onChange={(e) => handleEndDateChange(e.target.value)}
+                    className="text-sm rounded-lg border border-border bg-background px-2 py-1 shadow-sm"
+                    autoFocus
+                  />
+                  <Button size="sm" variant="ghost" className="size-7 p-0" onClick={() => setEditingEndDate(false)}>
+                    <X className="size-4" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setEditingEndDate(true)}
+                  className="flex items-center gap-1.5 rounded-md bg-muted/40 px-2.5 py-1 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground group border border-transparent hover:border-border/50"
+                >
+                  <div className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/20">
+                    <div className="size-1.5 rounded-full bg-muted-foreground/60" />
+                  </div>
+                  {endedDisplay}
+                  <Pencil className="size-3 opacity-0 group-hover:opacity-60 ml-0.5 transition-opacity" />
+                </button>
+              )
+            )}
+          </div>
           {workout.notes && (
             <p className="text-muted-foreground text-sm mt-0.5">{workout.notes}</p>
           )}
