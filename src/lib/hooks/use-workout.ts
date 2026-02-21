@@ -8,12 +8,15 @@ export function useWorkout(id: string) {
     });
 }
 
+/** Payload for adding a set; include optional exercise for optimistic UI. */
+export type AddSetPayload = WorkoutSetCreate & { exercise?: Exercise };
+
 export function useAddSet(workoutId: string) {
     const queryClient = useQueryClient();
 
-    type AddSetPayload = WorkoutSetCreate & { exercise?: Exercise };
-    return useMutation({
-        mutationFn: (payload: WorkoutSetCreate) => api.workouts.addSet(workoutId, payload),
+    type AddSetContext = { previous: WorkoutWithSets | undefined; tempId: string };
+    return useMutation<WorkoutSet, Error, AddSetPayload, AddSetContext>({
+        mutationFn: (payload) => api.workouts.addSet(workoutId, payload as WorkoutSetCreate),
         onMutate: async (newSet: AddSetPayload) => {
             await queryClient.cancelQueries({ queryKey: ["workout", workoutId] });
             const previous = queryClient.getQueryData<WorkoutWithSets>(["workout", workoutId]);

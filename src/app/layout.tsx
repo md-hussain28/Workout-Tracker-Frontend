@@ -1,18 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import { BottomNav } from "@/components/bottom-nav";
 import { Providers } from "@/components/providers";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Strong",
@@ -52,7 +43,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-[100dvh] antialiased`}
+        className={`${GeistSans.variable} ${GeistMono.variable} min-h-[100dvh] antialiased`}
       >
         <Providers>
           <main className="pb-[72px] min-h-[100dvh]">

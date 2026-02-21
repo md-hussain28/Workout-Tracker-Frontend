@@ -23,7 +23,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { api, type Exercise, type WorkoutWithSets, type WorkoutSet, type WorkoutSetCreate } from "@/lib/api";
-import { useWorkout, useAddSet, useUpdateSet, useDeleteSet, useEndWorkout, useDeleteWorkout, useDeleteExerciseSets } from "@/lib/hooks/use-workout";
+import { useWorkout, useAddSet, useUpdateSet, useDeleteSet, useEndWorkout, useDeleteWorkout, useDeleteExerciseSets, type AddSetPayload } from "@/lib/hooks/use-workout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -147,13 +147,14 @@ function ExercisePickerModal({
 
   function handleSelect(ex: Exercise) {
     if (addSetMutation.isPending) return;
-    addSetMutation.mutate({
+    const payload: AddSetPayload = {
       exercise_id: ex.id,
       set_order: 0,
       weight: null,
       reps: null,
       exercise: ex,
-    });
+    };
+    addSetMutation.mutate(payload);
     onOpenChange(false);
     setSearch("");
   }
