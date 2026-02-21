@@ -82,7 +82,7 @@ export default function BodyFatAnalyticsPage() {
         const map: Record<string, number> = {};
         const sources = latest ? [latest, ...history.filter((l) => l.id !== latest.id)] : [...history];
         for (const log of sources) {
-            const stats = log.computed_stats as Record<string, number | null> | undefined;
+            const stats = log.computed_stats as unknown as Record<string, number | null> | undefined;
             if (!stats) continue;
             for (const { key } of ALGORITHMS) {
                 const v = stats[key];
