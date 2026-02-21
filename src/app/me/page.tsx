@@ -639,9 +639,14 @@ export default function MePage() {
         return history.find((l) => l.computed_stats?.bmr)?.computed_stats?.bmr;
     }, [stats, history]);
 
+    const BF_KEYS = ["bf_army", "bf_cun_bae", "bf_rfm", "bf_multi", "bf_navy"] as const;
     const currentBF = useMemo(() => {
-        if (stats?.bf_navy) return stats.bf_navy;
-        return history.find((l) => l.computed_stats?.bf_navy)?.computed_stats?.bf_navy;
+        const cs = stats ?? history.find((l) => l.computed_stats && BF_KEYS.some((k) => (l.computed_stats as Record<string, number | null>)[k] != null))?.computed_stats;
+        if (!cs) return undefined;
+        const raw = cs as Record<string, number | null>;
+        const values = BF_KEYS.map((k) => raw[k]).filter((v): v is number => typeof v === "number");
+        if (values.length === 0) return undefined;
+        return Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10;
     }, [stats, history]);
 
     // For percentiles, we prefer the latest log's percentiles if available (even if partial),
