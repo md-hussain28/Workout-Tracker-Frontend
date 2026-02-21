@@ -31,8 +31,8 @@ const ALGORITHMS = [
         key: "bf_army",
         name: "U.S. Army (2024)",
         color: "#3b82f6", // blue-500
-        description: "New 2024 validated equation for the Army. Minimizes bias and relies on waist, hips, and weight.",
-        formula: "Men: -38.32 + 2.23×abdomen + 0.68×hip - 0.43×waist - 0.16×weight",
+        description: "2024 validated equation. Uses your logged Waist, Hips, and Weight.",
+        formula: "Men: -38.32 + 2.23×abdomen + 0.68×hip - 0.43×waist - 0.16×weight (abdomen/waist/hip = your Waist & Hips)",
     },
     {
         key: "bf_cun_bae",

@@ -66,6 +66,16 @@ export default function NewWorkoutPage() {
     instantiateMutation.mutate(templateId);
   }
 
+  // Full-page loading as soon as user taps Start — feels instant, then redirect
+  if (anyPending) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background">
+        <Loader2 className="size-12 animate-spin text-primary" />
+        <p className="text-muted-foreground font-medium">Starting workout…</p>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-lg px-4 pt-6 pb-4">
       <Link

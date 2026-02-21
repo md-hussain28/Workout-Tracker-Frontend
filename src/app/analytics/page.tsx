@@ -173,26 +173,27 @@ export default function AnalyticsPage() {
                         <Skeleton className="w-full min-h-[340px] rounded-2xl" />
                     ) : (
                         <div className="space-y-4">
-                            <div className="flex items-center justify-between gap-2">
-                                <p className="text-sm text-muted-foreground">Workout days by month — darker = more volume</p>
+                            <div className="flex items-center justify-end gap-2">
                                 <div className="flex items-center gap-1 rounded-lg bg-muted/60 p-1">
                                     <button
                                         type="button"
                                         onClick={() => setConsistencyYear((y) => y - 1)}
-                                        className="px-2 py-1 text-xs font-medium rounded-md hover:bg-background transition-colors"
+                                        className="size-8 flex items-center justify-center rounded-md hover:bg-background transition-colors text-muted-foreground hover:text-foreground"
+                                        aria-label="Previous year"
                                     >
-                                        ← {consistencyYear - 1}
+                                        ←
                                     </button>
-                                    <span className="px-2 py-1 text-xs font-semibold tabular-nums">{consistencyYear}</span>
+                                    <span className="min-w-[3rem] text-center text-sm font-semibold tabular-nums">{consistencyYear}</span>
                                     <button
                                         type="button"
                                         onClick={() => setConsistencyYear((y) => y + 1)}
+                                        disabled={consistencyYear >= new Date().getFullYear()}
                                         className={cn(
-                                            "px-2 py-1 text-xs font-medium rounded-md hover:bg-background transition-colors",
-                                            consistencyYear >= new Date().getFullYear() && "opacity-50 pointer-events-none"
+                                            "size-8 flex items-center justify-center rounded-md hover:bg-background transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
                                         )}
+                                        aria-label="Next year"
                                     >
-                                        {consistencyYear + 1} →
+                                        →
                                     </button>
                                 </div>
                             </div>

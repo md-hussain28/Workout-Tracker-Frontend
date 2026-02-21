@@ -182,7 +182,8 @@ export function TotalVolumeChart({ data }: { data: VolumeHistoryData[] }) {
     const gridStroke = "hsl(var(--border) / 0.5)";
     const tooltipBg = "hsl(var(--card))";
     const tooltipBorder = "hsl(var(--border))";
-    const primaryStroke = "hsl(var(--chart-2))"; // Vivid cyan
+    // Theme uses oklch for --chart-2; use var() directly (hsl(var(--chart-2)) is invalid). Fallback for SVG context.
+    const primaryStroke = "var(--chart-2, hsl(180, 60%, 45%))";
 
     return (
         <Card className="rounded-2xl border-border/80 shadow-sm overflow-hidden">
@@ -519,7 +520,7 @@ export function ConsistencyHeatmap({
                     Consistency Grid
                 </CardTitle>
                 <CardDescription className="text-muted-foreground">
-                    Last 365 days of activity. Darker squares indicate higher volume.
+                    Last 365 days. Darker = more volume.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -564,12 +565,11 @@ export function ConsistencyHeatmap({
                                         return (
                                             <div
                                                 key={day.dateStr}
-                                                className="size-3 rounded-[2px] flex items-center justify-center transition-all hover:ring-1 cursor-crosshair z-0 hover:z-10 hover:ring-primary/50 hover:scale-125"
-                                                style={{
-                                                    backgroundColor: hasWorkout
-                                                        ? `hsl(var(--chart-2) / ${0.3 + 0.7 * intensity})`
-                                                        : "hsl(var(--muted)/0.4)",
-                                                }}
+                                                className={`size-3 rounded-[2px] flex items-center justify-center transition-all hover:ring-1 cursor-crosshair z-0 hover:z-10 hover:ring-primary/50 hover:scale-125 ${!hasWorkout ? "border border-border bg-muted/40" : ""}`}
+                                                style={hasWorkout ? {
+                                                    backgroundColor: "var(--primary)",
+                                                    opacity: 0.4 + 0.6 * intensity,
+                                                } : undefined}
                                                 title={hasWorkout ? `${new Date(day.dateStr).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}: ${Math.round(data.tonnage).toLocaleString()} kg` : `${new Date(day.dateStr).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}: Rest day`}
                                             />
                                         );

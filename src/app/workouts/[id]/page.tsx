@@ -86,7 +86,7 @@ function PrToast({ prType, onDismiss }: { prType: string; onDismiss: () => void 
 import { WorkoutExerciseCard } from "@/components/workouts/WorkoutExerciseCard";
 import { ExerciseHistorySheet } from "@/components/workouts/ExerciseHistorySheet";
 
-// ── Exercise Picker (Modal – works well on mobile, no auto keyboard) ──
+// ── Exercise Picker (Modal – stays above keyboard on mobile via visualViewport) ──
 function ExercisePickerModal({
   workoutId,
   existingExerciseIds,
@@ -99,7 +99,24 @@ function ExercisePickerModal({
   onOpenChange: (v: boolean) => void;
 }) {
   const [search, setSearch] = useState("");
+  const [visibleHeight, setVisibleHeight] = useState(() =>
+    typeof window !== "undefined" ? window.visualViewport?.height ?? window.innerHeight : 400
+  );
   const addSetMutation = useAddSet(workoutId);
+
+  // Keep modal above the keyboard: constrain height to visible viewport
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const update = () => setVisibleHeight(vv.height);
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, [open]);
 
   const { data: exercises = [] } = useQuery({
     queryKey: ["exercises"],
@@ -135,15 +152,19 @@ function ExercisePickerModal({
       set_order: 0,
       weight: null,
       reps: null,
+      exercise: ex,
     });
     onOpenChange(false);
     setSearch("");
   }
 
+  const modalMaxHeight = Math.max(220, visibleHeight - 24);
+
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setSearch(""); }}>
       <DialogContent
-        className="flex max-h-[85dvh] w-[calc(100%-2rem)] max-w-lg flex-col gap-0 overflow-hidden p-0 sm:max-h-[80vh]"
+        className="flex w-[calc(100%-2rem)] max-w-lg flex-col gap-0 overflow-hidden p-0 !top-[max(12px,env(safe-area-inset-top))] !left-1/2 !-translate-x-1/2 !translate-y-0"
+        style={{ maxHeight: `${modalMaxHeight}px` }}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <DialogHeader className="shrink-0 border-b px-4 py-4 pb-3">
@@ -374,6 +395,17 @@ export default function WorkoutDetailPage() {
     })
     : null;
 
+  const startedTime = new Date(workout.started_at).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const endedTime = workout.ended_at
+    ? new Date(workout.ended_at).toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    })
+    : null;
+
   async function handleDateChange(value: string) {
     if (!value) return;
     const newDate = new Date(value).toISOString();
@@ -411,117 +443,83 @@ export default function WorkoutDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 pt-6 pb-4">
-      {/* Header */}
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">
-            {isActive ? "Workout" : "Workout Summary"}
-          </h1>
-          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
-            {editingDate ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="datetime-local"
-                  defaultValue={startedLocalIso}
-                  onChange={(e) => handleDateChange(e.target.value)}
-                  className="text-sm rounded-lg border border-border bg-background px-2 py-1 shadow-sm"
-                  autoFocus
-                />
-                <Button size="sm" variant="ghost" className="size-7 p-0" onClick={() => setEditingDate(false)}>
-                  <X className="size-4" />
-                </Button>
+    <div className="mx-auto max-w-lg px-4 pt-6 pb-24">
+      {/* Header — compact for completed, full for active */}
+      <div className="mb-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl font-semibold tracking-tight">
+              {isActive ? "Workout" : "Workout Summary"}
+            </h1>
+            {/* Completed: duration + stats in one clean block */}
+            {!isActive && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1.5 font-mono font-semibold tabular-nums text-foreground">
+                  <Timer className="size-4 text-primary" />
+                  {workout.duration_seconds != null
+                    ? formatDuration(workout.duration_seconds)
+                    : "—"}
+                </span>
+                <span>
+                  {groupedSets.length} exercise{groupedSets.length !== 1 ? "s" : ""} · {workout.sets.length} set{workout.sets.length !== 1 ? "s" : ""}
+                </span>
+                {workout.estimated_calories != null && (
+                  <span>~{Math.round(workout.estimated_calories)} kcal</span>
+                )}
               </div>
-            ) : (
-              <button
-                onClick={() => setEditingDate(true)}
-                className="flex items-center gap-1.5 rounded-md bg-muted/40 px-2.5 py-1 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground group border border-transparent hover:border-border/50"
-              >
-                <div className="flex size-4 items-center justify-center rounded-full bg-primary/10">
-                  <div className="size-1.5 rounded-full bg-primary" />
-                </div>
-                {started}
-                <Pencil className="size-3 opacity-0 group-hover:opacity-60 ml-0.5 transition-opacity" />
-              </button>
             )}
-
-            {!isActive && endedDisplay && (
-              editingEndDate ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="datetime-local"
-                    defaultValue={endedLocalIso}
-                    onChange={(e) => handleEndDateChange(e.target.value)}
-                    className="text-sm rounded-lg border border-border bg-background px-2 py-1 shadow-sm"
-                    autoFocus
-                  />
-                  <Button size="sm" variant="ghost" className="size-7 p-0" onClick={() => setEditingEndDate(false)}>
-                    <X className="size-4" />
-                  </Button>
+            {/* Active: started time + live timer */}
+            {isActive && (
+              <div className="mt-2 flex flex-col gap-1.5">
+                <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                  {editingDate ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="datetime-local"
+                        defaultValue={startedLocalIso}
+                        onChange={(e) => handleDateChange(e.target.value)}
+                        className="text-sm rounded-lg border border-border bg-background px-2 py-1 shadow-sm"
+                        autoFocus
+                      />
+                      <Button size="sm" variant="ghost" className="size-7 p-0 shrink-0" onClick={() => setEditingDate(false)}>
+                        <X className="size-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setEditingDate(true)}
+                      className="flex items-center gap-1.5 rounded-md bg-muted/40 px-2.5 py-1 w-fit font-medium transition-colors hover:bg-muted/60 hover:text-foreground group border border-transparent hover:border-border/50"
+                    >
+                      {started}
+                      <Pencil className="size-3 opacity-0 group-hover:opacity-60 ml-0.5 transition-opacity shrink-0" />
+                    </button>
+                  )}
                 </div>
-              ) : (
-                <button
-                  onClick={() => setEditingEndDate(true)}
-                  className="flex items-center gap-1.5 rounded-md bg-muted/40 px-2.5 py-1 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground group border border-transparent hover:border-border/50"
-                >
-                  <div className="flex size-4 items-center justify-center rounded-full bg-muted-foreground/20">
-                    <div className="size-1.5 rounded-full bg-muted-foreground/60" />
-                  </div>
-                  {endedDisplay}
-                  <Pencil className="size-3 opacity-0 group-hover:opacity-60 ml-0.5 transition-opacity" />
-                </button>
-              )
+                <LiveTimer startedAt={workout.started_at} />
+              </div>
+            )}
+            {workout.notes && (
+              <p className="text-muted-foreground text-sm mt-1.5">{workout.notes}</p>
             )}
           </div>
-          {workout.notes && (
-            <p className="text-muted-foreground text-sm mt-0.5">{workout.notes}</p>
+          {isActive && (
+            <Button
+              variant="outline"
+              size="lg"
+              className="rounded-xl shrink-0"
+              onClick={() => setEndDialogOpen(true)}
+              disabled={endWorkoutMutation.isPending}
+            >
+              {endWorkoutMutation.isPending ? (
+                <Loader2 className="size-5 animate-spin" />
+              ) : (
+                <StopCircle className="size-5" />
+              )}
+              <span className="hidden sm:inline ml-2">End</span>
+            </Button>
           )}
         </div>
-        {isActive && <LiveTimer startedAt={workout.started_at} />}
-        {!isActive && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-destructive hover:bg-destructive/10"
-            onClick={handleDeleteWorkout}
-            disabled={deleteWorkoutMutation.isPending}
-          >
-            {deleteWorkoutMutation.isPending ? (
-              <Loader2 className="size-5 animate-spin" />
-            ) : (
-              <Trash2 className="size-5" />
-            )}
-          </Button>
-        )}
       </div>
-
-      {/* Action Buttons for Active Workout */}
-      {isActive && (
-        <div className="flex gap-2 mb-5">
-          <Button
-            className="flex-1 rounded-xl py-5"
-            size="lg"
-            onClick={() => setExercisePickerOpen(true)}
-          >
-            <Plus className="mr-2 size-5" />
-            Add Exercise
-          </Button>
-          <Button
-            variant="outline"
-            size="lg"
-            className="rounded-xl py-5"
-            onClick={() => setEndDialogOpen(true)}
-            disabled={endWorkoutMutation.isPending}
-          >
-            {endWorkoutMutation.isPending ? (
-              <Loader2 className="mr-2 size-5 animate-spin" />
-            ) : (
-              <StopCircle className="mr-2 size-5" />
-            )}
-            End
-          </Button>
-        </div>
-      )}
 
       {/* End workout: optional intensity */}
       <Dialog open={endDialogOpen} onOpenChange={setEndDialogOpen}>
@@ -551,22 +549,9 @@ export default function WorkoutDetailPage() {
       {groupedSets.length === 0 && (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground text-sm">
-            No exercises yet. Tap &quot;Add Exercise&quot; to get started.
+            No exercises yet. Tap the <strong>+</strong> button below to add one.
           </CardContent>
         </Card>
-      )}
-
-      {/* Add Exercise Button - always visible for completed */}
-      {!isActive && (
-        <Button
-          variant="outline"
-          className="w-full rounded-xl mt-4"
-          size="lg"
-          onClick={() => setExercisePickerOpen(true)}
-        >
-          <Plus className="mr-2 size-5" />
-          Add Exercise
-        </Button>
       )}
 
       {groupedSets.length > 0 && (
@@ -599,26 +584,74 @@ export default function WorkoutDetailPage() {
         onOpenChange={(v) => !v && setHistoryExercise(null)}
       />
 
-      {/* Completed workout footer */}
+      {/* Completed workout: bottom bar (time + delete) and Save as template */}
       {!isActive && (
-        <div className="mt-6 flex flex-col gap-3">
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Duration:{" "}
-              {workout.duration_seconds != null
-                ? formatDuration(workout.duration_seconds)
-                : "—"}
-            </span>
-            <span>
-              {groupedSets.length} exercise{groupedSets.length !== 1 ? "s" : ""} ·{" "}
-              {workout.sets.length} set{workout.sets.length !== 1 ? "s" : ""}
-            </span>
+        <div className="mt-6 flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-3 text-[13px] text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {editingDate ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="datetime-local"
+                    defaultValue={startedLocalIso}
+                    onChange={(e) => handleDateChange(e.target.value)}
+                    className="text-sm rounded-lg border border-border bg-background px-2 py-1 shadow-sm"
+                    autoFocus
+                  />
+                  <Button size="sm" variant="ghost" className="size-7 p-0 shrink-0" onClick={() => setEditingDate(false)}>
+                    <X className="size-4" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setEditingDate(true)}
+                  className="rounded px-1.5 py-0.5 font-medium transition-colors hover:bg-muted/60 hover:text-foreground"
+                >
+                  {startedTime}
+                </button>
+              )}
+              {endedTime != null && (
+                <>
+                  <span className="text-muted-foreground/60">·</span>
+                  {editingEndDate ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="datetime-local"
+                        defaultValue={endedLocalIso}
+                        onChange={(e) => handleEndDateChange(e.target.value)}
+                        className="text-sm rounded-lg border border-border bg-background px-2 py-1 shadow-sm"
+                        autoFocus
+                      />
+                      <Button size="sm" variant="ghost" className="size-7 p-0 shrink-0" onClick={() => setEditingEndDate(false)}>
+                        <X className="size-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setEditingEndDate(true)}
+                      className="rounded px-1.5 py-0.5 font-medium transition-colors hover:bg-muted/60 hover:text-foreground"
+                    >
+                      {endedTime}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:bg-destructive/10 shrink-0 -mr-1"
+              onClick={handleDeleteWorkout}
+              disabled={deleteWorkoutMutation.isPending}
+            >
+              {deleteWorkoutMutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Trash2 className="size-4" />
+              )}
+              <span className="ml-1.5">Delete</span>
+            </Button>
           </div>
-          {workout.estimated_calories != null && (
-            <p className="text-sm text-muted-foreground">
-              Est. calories burned: ~{Math.round(workout.estimated_calories)} kcal
-            </p>
-          )}
           {groupedSets.length > 0 && (
             <SaveAsTemplateButton workoutId={workout.id} />
           )}
@@ -632,6 +665,16 @@ export default function WorkoutDetailPage() {
         open={exercisePickerOpen}
         onOpenChange={setExercisePickerOpen}
       />
+
+      {/* Floating Action Button – Add Exercise (thumb-friendly on mobile) */}
+      <button
+        type="button"
+        onClick={() => setExercisePickerOpen(true)}
+        className="fixed bottom-[calc(72px+max(env(safe-area-inset-bottom),8px)+16px)] right-5 z-40 flex size-14 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/25 text-primary-foreground transition-transform hover:scale-105 active:scale-95"
+        aria-label="Add exercise"
+      >
+        <Plus className="size-6" />
+      </button>
     </div>
   );
 }

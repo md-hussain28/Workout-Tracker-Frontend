@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Plus, Play, Timer } from "lucide-react";
+import { Plus, Play, Timer, Loader2 } from "lucide-react";
 import { api, type Workout /* , type WorkoutTemplate */ } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 
@@ -13,6 +14,7 @@ interface QuickStartCarouselProps {
 
 export function QuickStartCarousel({ activeWorkout }: QuickStartCarouselProps) {
     const router = useRouter();
+    const [isStarting, setIsStarting] = useState(false);
 
     const { data: templates = [] } = useQuery({
         queryKey: ["templates"],
@@ -20,20 +22,35 @@ export function QuickStartCarousel({ activeWorkout }: QuickStartCarouselProps) {
     });
 
     async function handleStartBlank() {
+        if (isStarting || activeWorkout) return;
+        setIsStarting(true);
         try {
             const workout = await api.workouts.create({});
             router.push(`/workouts/${workout.id}`);
-        } catch { /* noop */ }
+        } catch {
+            setIsStarting(false);
+        }
     }
 
     async function handleStartFromTemplate(templateId: string) {
+        if (isStarting || activeWorkout) return;
+        setIsStarting(true);
         try {
             const result = await api.templates.instantiate(templateId);
             router.push(`/workouts/${result.workout_id}`);
-        } catch { /* noop */ }
+        } catch {
+            setIsStarting(false);
+        }
     }
 
     return (
+        <>
+            {isStarting && (
+                <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background">
+                    <Loader2 className="size-12 animate-spin text-primary" />
+                    <p className="text-muted-foreground font-medium">Starting workout…</p>
+                </div>
+            )}
         <div className="overflow-x-auto snap-x scrollbar-hide -mx-4 px-4">
             <div className="flex gap-3" style={{ width: "max-content" }}>
                 {/* Card 1: New / Resume */}
@@ -104,5 +121,6 @@ export function QuickStartCarousel({ activeWorkout }: QuickStartCarouselProps) {
                 <div className="w-4 shrink-0" />
             </div>
         </div>
+        </>
     );
 }

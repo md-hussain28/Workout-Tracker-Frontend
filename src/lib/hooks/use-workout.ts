@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type WorkoutWithSets, type WorkoutSetCreate, type WorkoutSet, type WorkoutSetUpdate } from "@/lib/api";
+import { api, type WorkoutWithSets, type WorkoutSetCreate, type WorkoutSet, type WorkoutSetUpdate, type Exercise } from "@/lib/api";
 
 export function useWorkout(id: string) {
     return useQuery({
@@ -11,16 +11,17 @@ export function useWorkout(id: string) {
 export function useAddSet(workoutId: string) {
     const queryClient = useQueryClient();
 
+    type AddSetPayload = WorkoutSetCreate & { exercise?: Exercise };
     return useMutation({
         mutationFn: (payload: WorkoutSetCreate) => api.workouts.addSet(workoutId, payload),
-        onMutate: async (newSet) => {
+        onMutate: async (newSet: AddSetPayload) => {
             await queryClient.cancelQueries({ queryKey: ["workout", workoutId] });
             const previous = queryClient.getQueryData<WorkoutWithSets>(["workout", workoutId]);
             const tempId = `temp-${Date.now()}`;
 
             queryClient.setQueryData<WorkoutWithSets>(["workout", workoutId], (old) => {
                 if (!old) return old;
-                const optimisticSet: WorkoutSet = {
+                const optimisticSet: WorkoutSet & { exercise?: Exercise } = {
                     id: tempId,
                     workout_id: workoutId,
                     exercise_id: newSet.exercise_id,
@@ -34,10 +35,11 @@ export function useAddSet(workoutId: string) {
                     rest_seconds_after: newSet.rest_seconds_after ?? null,
                     is_pr: false,
                     pr_type: null,
+                    ...(newSet.exercise && { exercise: newSet.exercise }),
                 };
                 return {
                     ...old,
-                    sets: [...old.sets, optimisticSet],
+                    sets: [optimisticSet, ...old.sets],
                 };
             });
 
@@ -46,7 +48,7 @@ export function useAddSet(workoutId: string) {
         onSuccess: (savedSet, _vars, context) => {
             queryClient.setQueryData<WorkoutWithSets>(["workout", workoutId], (old) => {
                 if (!old) return old;
-                // Replace the temporary optimistic set with the real one from server
+                // Replace the temporary optimistic set with the real one from server; keep order (new at top)
                 return {
                     ...old,
                     sets: old.sets.map((s) =>
@@ -55,9 +57,9 @@ export function useAddSet(workoutId: string) {
                 };
             });
         },
-        onSettled: () => {
-            // Invalidate to ensure consistency, but the immediate UI is handled by onSuccess
-            queryClient.invalidateQueries({ queryKey: ["workout", workoutId] });
+        onSettled: (_data, error) => {
+            // Only invalidate on error so successful add keeps "new exercise at top" until next navigation
+            if (error) queryClient.invalidateQueries({ queryKey: ["workout", workoutId] });
         },
     });
 }
