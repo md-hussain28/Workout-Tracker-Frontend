@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useEffect } from "react";
 import {
     LineChart,
     Line,
@@ -469,6 +470,7 @@ export function ConsistencyHeatmap({
     days: ConsistencyDay[];
     className?: string;
 }) {
+    const scrollRef = useRef<HTMLDivElement>(null);
     const byDate = Object.fromEntries(days.map((d) => [d.date, d]));
     const maxTonnage = Math.max(1, ...days.map((d) => d.tonnage));
 
@@ -510,6 +512,19 @@ export function ConsistencyHeatmap({
 
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+    // Scroll so current month (right side) is in view on load and when data changes
+    useEffect(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        const scrollToEnd = () => {
+            el.scrollLeft = Math.max(0, el.scrollWidth - el.clientWidth);
+        };
+        scrollToEnd();
+        const ro = new ResizeObserver(scrollToEnd);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [weeks.length]);
+
     return (
         <Card className={className}>
             <CardHeader className="pb-2">
@@ -524,7 +539,10 @@ export function ConsistencyHeatmap({
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="flex items-start gap-2 overflow-x-auto pb-4 scrollbar-hide">
+                <div
+                    ref={scrollRef}
+                    className="flex items-start gap-2 overflow-x-auto pb-4 scrollbar-hide"
+                >
                     {/* Y-axis labels */}
                     <div className="flex flex-col gap-[3px] py-[15px] pt-[22px] text-[10px] font-medium text-muted-foreground">
                         <span className="h-3"></span>

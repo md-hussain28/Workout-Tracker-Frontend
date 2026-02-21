@@ -77,6 +77,23 @@ export default function BodyFatAnalyticsPage() {
 
     const isLoading = isHistoryLoading || isLatestLoading;
 
+    // Latest value per algorithm: use most recent log that has that value (from history or latest)
+    const latestByAlgo = useMemo(() => {
+        const map: Record<string, number> = {};
+        const sources = latest ? [latest, ...history.filter((l) => l.id !== latest.id)] : [...history];
+        for (const log of sources) {
+            const stats = log.computed_stats as Record<string, number | null> | undefined;
+            if (!stats) continue;
+            for (const { key } of ALGORITHMS) {
+                const v = stats[key];
+                if (v != null && typeof v === "number" && map[key] === undefined) {
+                    map[key] = v;
+                }
+            }
+        }
+        return map;
+    }, [history, latest]);
+
     // --- Chart Data Processing ---
     const chartData = useMemo(() => {
         return [...history]
@@ -222,7 +239,7 @@ export default function BodyFatAnalyticsPage() {
                 ) : (
                     <Accordion type="single" collapsible className="w-full space-y-3">
                         {ALGORITHMS.map((algo) => {
-                            const latestValue = latest?.computed_stats?.[algo.key as keyof typeof latest.computed_stats] as number | null | undefined;
+                            const latestValue = latestByAlgo[algo.key] ?? (latest?.computed_stats as Record<string, number> | undefined)?.[algo.key];
                             return (
                                 <AccordionItem
                                     key={algo.key}
