@@ -109,7 +109,7 @@ export default function ExerciseProgressionPage() {
   return (
     <div className="mx-auto max-w-lg px-4 pt-6 pb-24">
       <Link
-        href="/stats"
+        href="/analytics"
         className="inline-flex items-center gap-1 text-muted-foreground text-sm mb-4 hover:text-foreground transition-colors"
       >
         <ArrowLeft className="size-4" />

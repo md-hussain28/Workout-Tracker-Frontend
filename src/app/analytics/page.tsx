@@ -16,16 +16,77 @@ import {
 } from "@/components/AnalyticsCharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, TrendingUp, ChevronRight, BarChart3, Flame } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, TrendingUp, ChevronRight, BarChart3, Flame, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type TimeRange = "1m" | "3m" | "6m" | "1y" | "all";
 
+// Month calendar grid (this month's workout days)
+function ThisMonthGrid({
+    year,
+    month,
+    days,
+}: {
+    year: number;
+    month: number;
+    days: { date: string; duration_seconds: number | null; tonnage: number }[];
+}) {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const firstDay = new Date(year, month - 1, 1).getDay();
+    const byDate = Object.fromEntries(days.map((d) => [d.date, d]));
+
+    const cells: (string | null)[] = [];
+    for (let i = 0; i < firstDay; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) {
+        const date = `${year}-${month.toString().padStart(2, "0")}-${d.toString().padStart(2, "0")}`;
+        cells.push(date);
+    }
+
+    const weekDays = ["S", "M", "T", "W", "T", "F", "S"];
+
+    return (
+        <div>
+            <div className="grid grid-cols-7 gap-1 text-center text-muted-foreground text-xs mb-2">
+                {weekDays.map((w) => (
+                    <span key={w}>{w}</span>
+                ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+                {cells.map((date, i) => {
+                    if (!date) return <div key={`empty-${i}`} />;
+                    const data = byDate[date];
+                    const hasWorkout = !!data;
+                    return (
+                        <div
+                            key={date}
+                            className={cn(
+                                "aspect-square rounded-lg flex items-center justify-center text-xs font-medium",
+                                hasWorkout ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground"
+                            )}
+                            title={
+                                hasWorkout
+                                    ? `${data.duration_seconds ? `${Math.round(data.duration_seconds / 60)} min` : ""} ${data.tonnage ? `· ${Math.round(data.tonnage)} kg` : ""}`
+                                    : undefined
+                            }
+                        >
+                            {new Date(date).getDate()}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 export default function AnalyticsPage() {
     const [range, setRange] = useState<TimeRange>("3m");
     const [consistencyYear, setConsistencyYear] = useState(() => new Date().getFullYear());
+
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
 
     const getDateRange = () => {
         if (range === "all") return { from: undefined, to: undefined };
@@ -75,6 +136,16 @@ export default function AnalyticsPage() {
         queryFn: () => api.analytics.consistency(consistencyYear),
     });
 
+    const thisMonthQuery = useQuery({
+        queryKey: ["analytics", "consistency-month", currentYear, currentMonth],
+        queryFn: () => api.analytics.consistency(currentYear, currentMonth),
+    });
+
+    const prQuery = useQuery({
+        queryKey: ["pr", "trophy-room", "month"],
+        queryFn: () => api.pr.trophyRoom("month"),
+    });
+
     const isLoading =
         volumeQuery.isLoading ||
         distQuery.isLoading ||
@@ -84,94 +155,123 @@ export default function AnalyticsPage() {
         caloriesSummaryQuery.isLoading;
 
     const isLoadingConsistency = consistencyQuery.isLoading;
+    const prData = prQuery.data;
+    const thisMonthData = thisMonthQuery.data;
+    const daysSet = new Set(thisMonthData?.days.map((d) => d.date) ?? []);
 
     return (
-        <div className="container mx-auto px-4 py-6 sm:py-8 max-w-7xl">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-                <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Analytics</h1>
-                    <p className="text-muted-foreground text-sm mt-0.5">
-                        Volume, consistency, and intensity.
-                    </p>
-                </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <Calendar className="size-4 text-muted-foreground shrink-0" />
-                    <Select value={range} onValueChange={(v) => setRange(v as TimeRange)}>
-                        <SelectTrigger className="w-full sm:w-[140px] rounded-xl border-border/80 bg-background/80">
-                            <SelectValue placeholder="Range" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="1m">Last month</SelectItem>
-                            <SelectItem value="3m">Last 3 months</SelectItem>
-                            <SelectItem value="6m">Last 6 months</SelectItem>
-                            <SelectItem value="1y">Last year</SelectItem>
-                            <SelectItem value="all">All time</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
+        <div className="flex flex-col h-[calc(100dvh-72px)] max-w-7xl mx-auto w-full overflow-hidden">
+            <div className="flex-shrink-0 px-4 pt-6 pb-3">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Analytics</h1>
+                <p className="text-muted-foreground text-sm mt-0.5">
+                    Stats, volume, and intensity.
+                </p>
             </div>
 
-            <Tabs defaultValue="volume" className="space-y-6">
-                <TabsList className="h-11 p-1 rounded-xl bg-muted/60 border border-border/60 w-full sm:w-auto grid grid-cols-3">
-                    <TabsTrigger
-                        value="volume"
-                        className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm font-medium"
-                    >
-                        <BarChart3 className="size-4 mr-1.5 sm:mr-2 opacity-80" />
-                        Volume
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="consistency"
-                        className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm font-medium"
-                    >
-                        <Calendar className="size-4 mr-1.5 sm:mr-2 opacity-80" />
-                        Consistency
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="intensity"
-                        className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm font-medium"
-                    >
-                        <Flame className="size-4 mr-1.5 sm:mr-2 opacity-80" />
-                        Intensity
-                    </TabsTrigger>
-                </TabsList>
+            <Tabs defaultValue="stats" className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                <div className="flex-shrink-0 sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border/60 px-4 pb-2">
+                    <TabsList className="h-11 p-1 rounded-xl bg-muted/60 border border-border/60 w-full sm:w-auto grid grid-cols-3">
+                        <TabsTrigger
+                            value="stats"
+                            className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm font-medium"
+                        >
+                            <TrendingUp className="size-4 mr-1.5 sm:mr-2 opacity-80" />
+                            Stats
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="volume"
+                            className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm font-medium"
+                        >
+                            <BarChart3 className="size-4 mr-1.5 sm:mr-2 opacity-80" />
+                            Volume
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="intensity"
+                            className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm font-medium"
+                        >
+                            <Flame className="size-4 mr-1.5 sm:mr-2 opacity-80" />
+                            Intensity
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
 
-                <TabsContent value="volume" className="space-y-6 mt-0">
-                    {isLoading ? (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <Skeleton className="w-full h-[320px] rounded-2xl" />
-                            <Skeleton className="w-full h-[320px] rounded-2xl" />
-                        </div>
-                    ) : (
-                        <>
-                            <Link href="/stats/progression">
-                                <Card className="overflow-hidden rounded-2xl border-border/80 shadow-sm transition-all hover:bg-muted/30 hover:border-primary/30 cursor-pointer hover:shadow-md">
-                                    <CardContent className="py-4 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                                                <TrendingUp className="size-5" />
-                                            </div>
-                                            <div>
-                                                <p className="font-semibold">Exercise progression</p>
-                                                <p className="text-muted-foreground text-sm">1RM, volume & max weight by exercise</p>
-                                            </div>
+                {/* Stats tab: Exercise progression, PRs, This month, Consistency heatmap */}
+                <TabsContent value="stats" className="flex-1 min-h-0 overflow-y-auto mt-0 data-[state=inactive]:hidden">
+                    <div className="px-4 py-6 space-y-6 pb-24">
+                        <Link href="/stats/progression">
+                            <Card className="overflow-hidden rounded-2xl border-border/80 shadow-sm transition-all hover:bg-muted/30 hover:border-primary/30 cursor-pointer hover:shadow-md">
+                                <CardContent className="py-4 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                                            <TrendingUp className="size-5" />
                                         </div>
-                                        <ChevronRight className="size-5 text-muted-foreground" />
-                                    </CardContent>
-                                </Card>
-                            </Link>
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <TotalVolumeChart data={volumeQuery.data || []} />
-                                <VolumeGrowthChart data={volumeQuery.data || []} />
-                            </div>
-                        </>
-                    )}
-                </TabsContent>
+                                        <div>
+                                            <p className="font-semibold">Exercise progression</p>
+                                            <p className="text-muted-foreground text-sm">1RM, volume & max weight by exercise</p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="size-5 text-muted-foreground" />
+                                </CardContent>
+                            </Card>
+                        </Link>
 
-                <TabsContent value="consistency" className="space-y-6 mt-0">
-                    {isLoadingConsistency ? (
-                        <Skeleton className="w-full min-h-[340px] rounded-2xl" />
-                    ) : (
+                        {prQuery.isLoading ? (
+                            <Skeleton className="h-32 rounded-2xl" />
+                        ) : prData && (
+                            <Card className="overflow-hidden rounded-2xl border-primary/20">
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="flex items-center gap-2 text-lg">
+                                        <Trophy className="size-5 text-primary" />
+                                        PRs this month
+                                    </CardTitle>
+                                    <CardDescription>
+                                        {prData.count} personal record{prData.count !== 1 ? "s" : ""} set.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {prData.records.length === 0 ? (
+                                        <p className="text-muted-foreground text-sm py-2">No PRs yet this month.</p>
+                                    ) : (
+                                        <ul className="space-y-3">
+                                            {prData.records.slice(0, 10).map((r) => (
+                                                <li key={r.set_id} className="flex items-center justify-between text-sm">
+                                                    <div>
+                                                        <p className="font-medium">{r.exercise_name ?? `Exercise #${r.exercise_id}`}</p>
+                                                        <p className="text-muted-foreground">
+                                                            {r.weight != null && r.reps != null && `${r.weight} × ${r.reps} reps`}
+                                                            {r.duration_seconds != null && `${r.duration_seconds}s`}
+                                                            {r.pr_type && (
+                                                                <Badge variant="secondary" className="ml-2 text-xs">{r.pr_type}</Badge>
+                                                            )}
+                                                        </p>
+                                                    </div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {thisMonthQuery.isLoading ? (
+                            <Skeleton className="h-48 rounded-2xl" />
+                        ) : thisMonthData && (
+                            <Card className="rounded-2xl border-border/80">
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="flex items-center gap-2 text-lg">
+                                        <Calendar className="size-5" />
+                                        This month
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Days with workouts: {daysSet.size}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <ThisMonthGrid year={currentYear} month={currentMonth} days={thisMonthData.days} />
+                                </CardContent>
+                            </Card>
+                        )}
+
                         <div className="space-y-4">
                             <div className="flex items-center justify-end gap-2">
                                 <div className="flex items-center gap-1 rounded-lg bg-muted/60 p-1">
@@ -197,39 +297,93 @@ export default function AnalyticsPage() {
                                     </button>
                                 </div>
                             </div>
-                            <ConsistencyHeatmap
-                                year={consistencyYear}
-                                days={consistencyQuery.data?.days ?? []}
-                                className="rounded-2xl border-border/80 shadow-sm overflow-hidden"
-                            />
+                            {isLoadingConsistency ? (
+                                <Skeleton className="w-full min-h-[340px] rounded-2xl" />
+                            ) : (
+                                <ConsistencyHeatmap
+                                    year={consistencyYear}
+                                    days={consistencyQuery.data?.days ?? []}
+                                    className="rounded-2xl border-border/80 shadow-sm overflow-hidden"
+                                />
+                            )}
                         </div>
-                    )}
+                    </div>
                 </TabsContent>
 
-                <TabsContent value="intensity" className="space-y-6 mt-0">
-                    {isLoading ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <Skeleton className="w-full h-[320px] rounded-2xl" />
-                            <Skeleton className="w-full h-[300px] rounded-2xl" />
-                            <Skeleton className="w-full h-[300px] rounded-2xl" />
-                            <Skeleton className="w-full h-[300px] rounded-2xl" />
+                {/* Volume tab */}
+                <TabsContent value="volume" className="flex-1 min-h-0 overflow-y-auto mt-0 data-[state=inactive]:hidden">
+                    <div className="px-4 py-6 space-y-6 pb-24">
+                        <div className="flex items-center justify-end gap-2">
+                            <Calendar className="size-4 text-muted-foreground shrink-0" />
+                            <Select value={range} onValueChange={(v) => setRange(v as TimeRange)}>
+                                <SelectTrigger className="w-full sm:w-[140px] rounded-xl border-border/80 bg-background/80">
+                                    <SelectValue placeholder="Range" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="1m">Last month</SelectItem>
+                                    <SelectItem value="3m">Last 3 months</SelectItem>
+                                    <SelectItem value="6m">Last 6 months</SelectItem>
+                                    <SelectItem value="1y">Last year</SelectItem>
+                                    <SelectItem value="all">All time</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="md:col-span-2">
-                                <CaloriesBurnedChart
-                                    data={caloriesHistoryQuery.data || []}
-                                    emptyMessage="Log weight in Me to see calorie estimates."
-                                />
+                        {isLoading ? (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <Skeleton className="w-full h-[320px] rounded-2xl" />
+                                <Skeleton className="w-full h-[320px] rounded-2xl" />
                             </div>
-                            <CaloriesSummaryCard data={caloriesSummaryQuery.data} />
-                            <MuscleSplitChart data={distQuery.data || []} />
-                            <RepDensityChart data={densityQuery.data || []} />
-                            <div className="md:col-span-2">
-                                <PlateauRadarChart data={radarQuery.data || []} />
+                        ) : (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <TotalVolumeChart data={volumeQuery.data || []} />
+                                <VolumeGrowthChart data={volumeQuery.data || []} />
                             </div>
+                        )}
+                    </div>
+                </TabsContent>
+
+                {/* Intensity tab */}
+                <TabsContent value="intensity" className="flex-1 min-h-0 overflow-y-auto mt-0 data-[state=inactive]:hidden">
+                    <div className="px-4 py-6 space-y-6 pb-24">
+                        <div className="flex items-center justify-end gap-2">
+                            <Calendar className="size-4 text-muted-foreground shrink-0" />
+                            <Select value={range} onValueChange={(v) => setRange(v as TimeRange)}>
+                                <SelectTrigger className="w-full sm:w-[140px] rounded-xl border-border/80 bg-background/80">
+                                    <SelectValue placeholder="Range" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="1m">Last month</SelectItem>
+                                    <SelectItem value="3m">Last 3 months</SelectItem>
+                                    <SelectItem value="6m">Last 6 months</SelectItem>
+                                    <SelectItem value="1y">Last year</SelectItem>
+                                    <SelectItem value="all">All time</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
-                    )}
+                        {isLoading ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <Skeleton className="w-full h-[320px] rounded-2xl" />
+                                <Skeleton className="w-full h-[300px] rounded-2xl" />
+                                <Skeleton className="w-full h-[300px] rounded-2xl" />
+                                <Skeleton className="w-full h-[300px] rounded-2xl" />
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="md:col-span-2">
+                                    <CaloriesBurnedChart
+                                        data={caloriesHistoryQuery.data || []}
+                                        emptyMessage="Log weight in Me to see calorie estimates."
+                                    />
+                                </div>
+                                <CaloriesSummaryCard data={caloriesSummaryQuery.data} />
+                                <MuscleSplitChart data={distQuery.data || []} />
+                                <RepDensityChart data={densityQuery.data || []} />
+                                <div className="md:col-span-2">
+                                    <PlateauRadarChart data={radarQuery.data || []} />
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </TabsContent>
             </Tabs>
         </div>
