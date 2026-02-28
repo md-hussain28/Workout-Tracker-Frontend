@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Check } from "lucide-react";
 import { api } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
 
@@ -34,12 +35,22 @@ export function WeeklyRings() {
     today.setHours(0, 0, 0, 0);
     const weekDates = getWeekDates();
 
-    const { data: consistency } = useQuery({
+    const { data: consistency, isLoading } = useQuery({
         queryKey: ["analytics", "consistency", today.getFullYear(), today.getMonth() + 1],
         queryFn: () => api.analytics.consistency(today.getFullYear(), today.getMonth() + 1),
     });
 
     const trainedDates = new Set(consistency?.days?.map((d) => d.date.slice(0, 10)) ?? []);
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-between gap-1 px-1 py-2">
+                {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                    <Skeleton key={i} className="size-10 rounded-full shrink-0" />
+                ))}
+            </div>
+        );
+    }
 
     return (
         <div className="flex items-center justify-between gap-1 px-1">

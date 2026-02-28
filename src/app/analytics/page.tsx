@@ -24,6 +24,11 @@ import { cn } from "@/lib/utils";
 
 type TimeRange = "1m" | "3m" | "6m" | "1y" | "all";
 
+// Normalize API date to YYYY-MM-DD for lookup (handles "2025-03-01" or "2025-03-01T00:00:00Z")
+function toDateKey(dateStr: string): string {
+    return dateStr.slice(0, 10);
+}
+
 // Month calendar grid (this month's workout days)
 function ThisMonthGrid({
     year,
@@ -34,9 +39,10 @@ function ThisMonthGrid({
     month: number;
     days: { date: string; duration_seconds: number | null; tonnage: number }[];
 }) {
+    // month is 1-indexed (1=Jan). JS Date uses 0-indexed month; last day of month M = new Date(year, M, 0)
     const daysInMonth = new Date(year, month, 0).getDate();
     const firstDay = new Date(year, month - 1, 1).getDay();
-    const byDate = Object.fromEntries(days.map((d) => [d.date, d]));
+    const byDate = Object.fromEntries(days.map((d) => [toDateKey(d.date), d]));
 
     const cells: (string | null)[] = [];
     for (let i = 0; i < firstDay; i++) cells.push(null);
@@ -57,7 +63,7 @@ function ThisMonthGrid({
             <div className="grid grid-cols-7 gap-1">
                 {cells.map((date, i) => {
                     if (!date) return <div key={`empty-${i}`} />;
-                    const data = byDate[date];
+                    const data = byDate[toDateKey(date)];
                     const hasWorkout = !!data;
                     return (
                         <div
@@ -255,7 +261,7 @@ export default function AnalyticsPage() {
 
                         {thisMonthQuery.isLoading ? (
                             <Skeleton className="h-48 rounded-2xl" />
-                        ) : thisMonthData && (
+                        ) : (
                             <Card className="rounded-2xl border-border/80">
                                 <CardHeader className="pb-2">
                                     <CardTitle className="flex items-center gap-2 text-lg">
@@ -263,11 +269,21 @@ export default function AnalyticsPage() {
                                         This month
                                     </CardTitle>
                                     <CardDescription>
-                                        Days with workouts: {daysSet.size}
+                                        {thisMonthQuery.isError
+                                            ? "Couldn't load this month."
+                                            : `Days with workouts: ${thisMonthData?.days?.length ?? 0}`}
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <ThisMonthGrid year={currentYear} month={currentMonth} days={thisMonthData.days} />
+                                    {thisMonthQuery.isError ? (
+                                        <p className="text-sm text-muted-foreground py-4 text-center">Try again later.</p>
+                                    ) : (
+                                        <ThisMonthGrid
+                                            year={currentYear}
+                                            month={currentMonth}
+                                            days={thisMonthData?.days ?? []}
+                                        />
+                                    )}
                                 </CardContent>
                             </Card>
                         )}

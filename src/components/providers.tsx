@@ -1,7 +1,16 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
+
+/** Fires a lightweight health request on app load to wake server (e.g. Render cold start). */
+function ApiWarmup({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    api.health().catch(() => {});
+  }, []);
+  return <>{children}</>;
+}
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -18,6 +27,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <ApiWarmup>{children}</ApiWarmup>
+    </QueryClientProvider>
   );
 }

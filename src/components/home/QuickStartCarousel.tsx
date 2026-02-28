@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Plus, Play, Timer, Loader2 } from "lucide-react";
 import { api, type Workout /* , type WorkoutTemplate */ } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface QuickStartCarouselProps {
     activeWorkout: Workout | undefined;
@@ -16,7 +17,7 @@ export function QuickStartCarousel({ activeWorkout }: QuickStartCarouselProps) {
     const router = useRouter();
     const [isStarting, setIsStarting] = useState(false);
 
-    const { data: templates = [] } = useQuery({
+    const { data: templates = [], isLoading: isTemplatesLoading } = useQuery({
         queryKey: ["templates"],
         queryFn: () => api.templates.list(),
     });
@@ -53,6 +54,14 @@ export function QuickStartCarousel({ activeWorkout }: QuickStartCarouselProps) {
             )}
         <div className="overflow-x-auto snap-x scrollbar-hide -mx-4 px-4">
             <div className="flex gap-3" style={{ width: "max-content" }}>
+                {isTemplatesLoading ? (
+                    <>
+                        <Skeleton className="h-[120px] w-[160px] shrink-0 rounded-2xl" />
+                        <Skeleton className="h-[120px] w-[160px] shrink-0 rounded-2xl" />
+                        <Skeleton className="h-[120px] w-[160px] shrink-0 rounded-2xl" />
+                    </>
+                ) : (
+                <>
                 {/* Card 1: New / Resume */}
                 <motion.button
                     initial={{ opacity: 0, y: 20 }}
@@ -119,6 +128,8 @@ export function QuickStartCarousel({ activeWorkout }: QuickStartCarouselProps) {
 
                 {/* Spacer for scroll padding */}
                 <div className="w-4 shrink-0" />
+                </>
+                )}
             </div>
         </div>
         </>

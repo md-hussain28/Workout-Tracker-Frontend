@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Flame, TrendingUp, TrendingDown, Trophy, Activity } from "lucide-react";
 import { api, type StreakResponse } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // ── SVG Circular Progress ──
 function CircleProgress({
@@ -72,13 +73,14 @@ function Sparkline({ data, color = "var(--primary)" }: { data: number[]; color?:
 
 interface BentoGridProps {
     streak: StreakResponse | undefined;
+    isStreakLoading?: boolean;
 }
 
-export function BentoGrid({ streak }: BentoGridProps) {
+export function BentoGrid({ streak, isStreakLoading }: BentoGridProps) {
     const now = new Date();
 
     // Workouts this month (for the streak ring)
-    const { data: monthConsistency } = useQuery({
+    const { data: monthConsistency, isLoading: isConsistencyLoading } = useQuery({
         queryKey: ["analytics", "consistency", now.getFullYear(), now.getMonth() + 1],
         queryFn: () => api.analytics.consistency(now.getFullYear(), now.getMonth() + 1),
     });
@@ -90,7 +92,7 @@ export function BentoGrid({ streak }: BentoGridProps) {
     const thirtyDaysAgo = new Date(now);
     thirtyDaysAgo.setDate(now.getDate() - 30);
 
-    const { data: tonnage } = useQuery({
+    const { data: tonnage, isLoading: isTonnageLoading } = useQuery({
         queryKey: ["analytics", "tonnage", "30d"],
         queryFn: () => api.analytics.tonnage(thirtyDaysAgo.toISOString(), now.toISOString()),
     });
@@ -107,10 +109,12 @@ export function BentoGrid({ streak }: BentoGridProps) {
     const volumeUp = volumeTrend >= 0;
 
     // Plateau radar for "PR Bounty" tile
-    const { data: plateauData } = useQuery({
+    const { data: plateauData, isLoading: isPlateauLoading } = useQuery({
         queryKey: ["analytics", "radar"],
         queryFn: () => api.analytics.plateauRadar(),
     });
+
+    const isGridLoading = isStreakLoading || isConsistencyLoading || isTonnageLoading || isPlateauLoading;
 
     // Find the exercise with highest plateau score (most stagnant)
     const prTarget = useMemo(() => {
@@ -131,6 +135,17 @@ export function BentoGrid({ streak }: BentoGridProps) {
             transition: { delay: i * 0.08, type: "spring" as const, stiffness: 300, damping: 30 },
         }),
     };
+
+    if (isGridLoading) {
+        return (
+            <div className="grid grid-cols-4 grid-rows-[auto_auto_auto] gap-3">
+                <Skeleton className="col-span-2 row-span-2 min-h-[170px] rounded-2xl" />
+                <Skeleton className="col-span-2 rounded-2xl h-24" />
+                <Skeleton className="col-span-2 rounded-2xl h-24" />
+                <Skeleton className="col-span-4 rounded-2xl h-20" />
+            </div>
+        );
+    }
 
     return (
         <div className="grid grid-cols-4 grid-rows-[auto_auto_auto] gap-3">
