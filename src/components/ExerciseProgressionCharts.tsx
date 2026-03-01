@@ -279,7 +279,7 @@ export function ExerciseProgressionCharts({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="h-[200px] w-full rounded-xl bg-muted/20 p-2">
                 <p className="text-xs font-medium text-muted-foreground mb-1 text-center">Sets</p>
-                <ResponsiveContainer width="100%" height="calc(100% - 20px)">
+                <ResponsiveContainer width="100%" height={180}>
                   <BarChart
                     data={filteredStats.sets_reps_history}
                     margin={{ top: 4, right: 8, left: 4, bottom: 0 }}
@@ -321,7 +321,7 @@ export function ExerciseProgressionCharts({
               </div>
               <div className="h-[200px] w-full rounded-xl bg-muted/20 p-2">
                 <p className="text-xs font-medium text-muted-foreground mb-1 text-center">Reps</p>
-                <ResponsiveContainer width="100%" height="calc(100% - 20px)">
+                <ResponsiveContainer width="100%" height={180}>
                   <BarChart
                     data={filteredStats.sets_reps_history}
                     margin={{ top: 4, right: 8, left: 4, bottom: 0 }}
