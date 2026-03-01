@@ -330,7 +330,10 @@ export function RepDensityChart({ data }: { data: DensityData[] }) {
 }
 
 export function CaloriesBurnedChart({ data, emptyMessage }: { data: CaloriesHistoryEntry[]; emptyMessage?: string }) {
-    if (!data || data.length === 0) {
+    const entries = Array.isArray(data)
+        ? data.filter((d): d is CaloriesHistoryEntry => d != null && typeof d.date === "string" && typeof d.calories === "number")
+        : [];
+    if (entries.length === 0) {
         return (
             <Card className="col-span-1 lg:col-span-2 rounded-2xl border-border/80">
                 <CardHeader>
@@ -363,7 +366,7 @@ export function CaloriesBurnedChart({ data, emptyMessage }: { data: CaloriesHist
             </CardHeader>
             <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <BarChart data={entries} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                         <XAxis
                             dataKey="date"
                             tick={{ fontSize: 12 }}

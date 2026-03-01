@@ -98,6 +98,7 @@ export default function ExerciseProgressionPage() {
       one_rm_progression: stats.one_rm_progression.filter((p) => inRange(p.date)),
       volume_history: stats.volume_history.filter((p) => inRange(p.date)),
       max_weight_history: stats.max_weight_history.filter((p) => inRange(p.date)),
+      sets_reps_history: stats.sets_reps_history.filter((p) => inRange(p.date)),
       recent_history: stats.recent_history.filter((h) =>
         h.started_at ? inRange(h.started_at) : false
       ),

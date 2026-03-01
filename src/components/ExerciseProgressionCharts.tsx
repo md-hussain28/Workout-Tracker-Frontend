@@ -14,7 +14,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import Link from "next/link";
-import { Trophy, TrendingUp, Hash, Calendar, CalendarRange } from "lucide-react";
+import { Trophy, TrendingUp, Hash, Calendar, CalendarRange, Layers, ListOrdered } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
@@ -39,10 +39,11 @@ const TIME_RANGES = [
 
 export type TimeRangeValue = (typeof TIME_RANGES)[number]["value"];
 
-// Modern chart colors (work in light/dark)
+// Modern chart colors — use explicit values so line/dots/axes are visible in all themes
+// Axis tick text must be a solid color; CSS vars like --muted-foreground often don't resolve in SVG
 const CHART = {
-  primary: "hsl(var(--primary))",
-  primaryMuted: "hsl(var(--primary) / 0.15)",
+  primary: "hsl(262, 83%, 58%)", // visible purple
+  primaryMuted: "hsl(262, 83%, 58% / 0.2)",
   volume: "hsl(142, 76%, 46%)", // emerald
   volumeMuted: "hsl(142, 76%, 46% / 0.2)",
   maxWeight: "hsl(38, 92%, 50%)", // amber
@@ -50,6 +51,8 @@ const CHART = {
   grid: "hsl(var(--border) / 0.6)",
   tooltipBg: "hsl(var(--card))",
   tooltipBorder: "hsl(var(--border))",
+  dotStroke: "hsl(var(--card))", // contrast ring around dots
+  axisTick: "hsl(240, 5%, 48%)", // explicit gray so X/Y axis labels are always visible in SVG
 };
 
 const formatDateShort = (v: string) =>
@@ -204,22 +207,23 @@ export function ExerciseProgressionCharts({
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={filteredStats.one_rm_progression}
-                  margin={{ top: 8, right: 12, left: -8, bottom: 0 }}
+                  margin={{ top: 8, right: 12, left: 8, bottom: 4 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} vertical={false} />
                   <XAxis
                     dataKey="date"
-                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    tick={{ fontSize: 11, fill: CHART.axisTick }}
                     tickFormatter={formatDateShort}
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                    width={36}
+                    tick={{ fontSize: 11, fill: CHART.axisTick }}
+                    width={40}
                     axisLine={false}
                     tickLine={false}
                     tickFormatter={(v) => (Number(v) >= 1000 ? `${v / 1000}k` : String(v))}
+                    domain={["auto", "auto"]}
                   />
                   <Tooltip
                     contentStyle={{
@@ -240,9 +244,11 @@ export function ExerciseProgressionCharts({
                     type="monotone"
                     dataKey="estimated_1rm"
                     stroke={CHART.primary}
-                    strokeWidth={2.5}
-                    dot={{ fill: CHART.primary, strokeWidth: 2, r: 3.5 }}
-                    activeDot={{ r: 6, strokeWidth: 2, stroke: "hsl(var(--background))" }}
+                    strokeWidth={3}
+                    dot={{ fill: CHART.primary, stroke: CHART.dotStroke, strokeWidth: 2, r: 5 }}
+                    activeDot={{ r: 7, fill: CHART.primary, stroke: CHART.dotStroke, strokeWidth: 2 }}
+                    connectNulls={false}
+                    isAnimationActive={true}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -252,6 +258,115 @@ export function ExerciseProgressionCharts({
               <TrendingUp className="size-10 mb-3 opacity-30" />
               <p className="text-sm font-medium">Not enough data</p>
               <p className="text-xs mt-0.5">Log more workouts to see progress</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Sets & Reps — two charts in one card */}
+      <Card className="rounded-2xl border-border/80 shadow-sm overflow-hidden">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <Layers className="size-5 text-primary" />
+            Sets & Reps per Workout
+          </CardTitle>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Number of sets and total reps for this exercise each workout day.
+          </p>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {filteredStats.sets_reps_history?.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="h-[200px] w-full rounded-xl bg-muted/20 p-2">
+                <p className="text-xs font-medium text-muted-foreground mb-1 text-center">Sets</p>
+                <ResponsiveContainer width="100%" height="calc(100% - 20px)">
+                  <BarChart
+                    data={filteredStats.sets_reps_history}
+                    margin={{ top: 4, right: 8, left: 4, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 10, fill: CHART.axisTick }}
+                      tickFormatter={formatDateShort}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: CHART.axisTick }}
+                      width={28}
+                      axisLine={false}
+                      tickLine={false}
+                      allowDecimals={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: CHART.tooltipBg,
+                        border: `1px solid ${CHART.tooltipBorder}`,
+                        borderRadius: "0.75rem",
+                        fontSize: 12,
+                      }}
+                      labelFormatter={(v) => formatDateLong(String(v))}
+                      formatter={(value) => [String(value), "Sets"]}
+                      cursor={{ fill: CHART.primaryMuted }}
+                    />
+                    <Bar
+                      dataKey="sets"
+                      fill={CHART.primary}
+                      radius={[6, 6, 0, 0]}
+                      maxBarSize={36}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="h-[200px] w-full rounded-xl bg-muted/20 p-2">
+                <p className="text-xs font-medium text-muted-foreground mb-1 text-center">Reps</p>
+                <ResponsiveContainer width="100%" height="calc(100% - 20px)">
+                  <BarChart
+                    data={filteredStats.sets_reps_history}
+                    margin={{ top: 4, right: 8, left: 4, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 10, fill: CHART.axisTick }}
+                      tickFormatter={formatDateShort}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: CHART.axisTick }}
+                      width={28}
+                      axisLine={false}
+                      tickLine={false}
+                      allowDecimals={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: CHART.tooltipBg,
+                        border: `1px solid ${CHART.tooltipBorder}`,
+                        borderRadius: "0.75rem",
+                        fontSize: 12,
+                      }}
+                      labelFormatter={(v) => formatDateLong(String(v))}
+                      formatter={(value) => [Number(value ?? 0).toLocaleString(), "Reps"]}
+                      cursor={{ fill: CHART.volumeMuted }}
+                    />
+                    <Bar
+                      dataKey="reps"
+                      fill={CHART.volume}
+                      radius={[6, 6, 0, 0]}
+                      maxBarSize={36}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ) : (
+            <div className="h-[200px] flex flex-col items-center justify-center text-muted-foreground rounded-xl border-2 border-dashed border-border bg-muted/10">
+              <ListOrdered className="size-10 mb-3 opacity-30" />
+              <p className="text-sm font-medium">No sets & reps data</p>
+              <p className="text-xs mt-0.5">Log weight × reps sets to see progression</p>
             </div>
           )}
         </CardContent>
@@ -271,19 +386,19 @@ export function ExerciseProgressionCharts({
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={filteredStats.volume_history}
-                  margin={{ top: 8, right: 12, left: -8, bottom: 0 }}
+                  margin={{ top: 8, right: 12, left: 8, bottom: 4 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} vertical={false} />
                   <XAxis
                     dataKey="date"
-                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    tick={{ fontSize: 11, fill: CHART.axisTick }}
                     tickFormatter={formatDateShort}
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                    width={36}
+                    tick={{ fontSize: 11, fill: CHART.axisTick }}
+                    width={40}
                     axisLine={false}
                     tickLine={false}
                     tickFormatter={(v) => (Number(v) >= 1000 ? `${v / 1000}k` : String(v))}
@@ -333,7 +448,7 @@ export function ExerciseProgressionCharts({
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={filteredStats.max_weight_history}
-                  margin={{ top: 8, right: 12, left: -8, bottom: 0 }}
+                  margin={{ top: 8, right: 12, left: 8, bottom: 4 }}
                 >
                   <defs>
                     <linearGradient id="areaGradientWeight" x1="0" y1="0" x2="0" y2="1">
@@ -344,14 +459,14 @@ export function ExerciseProgressionCharts({
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} vertical={false} />
                   <XAxis
                     dataKey="date"
-                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    tick={{ fontSize: 11, fill: CHART.axisTick }}
                     tickFormatter={formatDateShort}
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                    width={36}
+                    tick={{ fontSize: 11, fill: CHART.axisTick }}
+                    width={40}
                     axisLine={false}
                     tickLine={false}
                   />

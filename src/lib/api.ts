@@ -312,6 +312,7 @@ export interface ExerciseStatsResponse {
   one_rm_progression: { date: string; estimated_1rm: number }[];
   volume_history: { date: string; volume: number }[];
   max_weight_history: { date: string; weight: number }[];
+  sets_reps_history: { date: string; sets: number; reps: number }[];
   recent_history: {
     workout_id: string;
     started_at: string | null;

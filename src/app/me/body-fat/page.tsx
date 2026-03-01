@@ -31,8 +31,8 @@ const ALGORITHMS = [
         key: "bf_army",
         name: "U.S. Army (2024)",
         color: "#3b82f6", // blue-500
-        description: "2024 validated equation. Uses your logged Waist, Hips, and Weight.",
-        formula: "Men: -38.32 + 2.23×abdomen + 0.68×hip - 0.43×waist - 0.16×weight (abdomen/waist/hip = your Waist & Hips)",
+        description: "2024 one-site equation. Uses abdomen (waist at navel) and weight. All measurements in cm.",
+        formula: "Men: -27.05 + 2.06×abdomen(in) - 0.12×weight(kg). Women: -8.06 + 1.25×abdomen(in) - 0.004×weight(kg)",
     },
     {
         key: "bf_cun_bae",
@@ -45,8 +45,8 @@ const ALGORITHMS = [
         key: "bf_rfm",
         name: "Relative Fat Mass (RFM)",
         color: "#f59e0b", // amber-500
-        description: "Simple, waist-focused. Correlates very well with DEXA scans.",
-        formula: "Men: 64 - (20 × height/waist)",
+        description: "Simple, waist-focused (waist at navel, in cm). Correlates well with DEXA.",
+        formula: "Men: 64 - (20 × height/waist). Women: 76 - (20 × height/waist). Same units for height & waist.",
     },
     {
         key: "bf_multi",
@@ -59,8 +59,8 @@ const ALGORITHMS = [
         key: "bf_navy",
         name: "U.S. Navy",
         color: "#10b981", // emerald-500
-        description: "Standard equation historically used by the military. Relies heavily on waist and neck measurements.",
-        formula: "Men: 86.010×log10(waist−neck) − 70.041×log10(height) + 36.76",
+        description: "Waist at navel, neck below Adam's apple (cm). Women also need hips at widest point.",
+        formula: "Men: 86.010×log10(waist−neck) − 70.041×log10(height) + 36.76. All in inches in formula.",
     },
 ];
 

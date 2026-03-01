@@ -19,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, TrendingUp, ChevronRight, BarChart3, Flame, Trophy } from "lucide-react";
+import { Calendar, TrendingUp, ChevronRight, BarChart3, Flame, Trophy, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type TimeRange = "1m" | "3m" | "6m" | "1y" | "all";
@@ -90,9 +90,33 @@ function ThisMonthGrid({
 export default function AnalyticsPage() {
     const [range, setRange] = useState<TimeRange>("3m");
     const [consistencyYear, setConsistencyYear] = useState(() => new Date().getFullYear());
+    const [thisMonthYear, setThisMonthYear] = useState(() => new Date().getFullYear());
+    const [thisMonthMonth, setThisMonthMonth] = useState(() => new Date().getMonth() + 1);
 
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth() + 1;
+    const isCurrentMonth = thisMonthYear === currentYear && thisMonthMonth === currentMonth;
+
+    const goPrevMonth = () => {
+        setThisMonthMonth((m) => {
+            if (m <= 1) {
+                setThisMonthYear((y) => y - 1);
+                return 12;
+            }
+            return m - 1;
+        });
+    };
+    const goNextMonth = () => {
+        if (thisMonthYear > currentYear || (thisMonthYear === currentYear && thisMonthMonth >= currentMonth)) return;
+        setThisMonthMonth((m) => {
+            if (m >= 12) {
+                setThisMonthYear((y) => y + 1);
+                return 1;
+            }
+            return m + 1;
+        });
+    };
+    const monthLabel = new Date(thisMonthYear, thisMonthMonth - 1, 1).toLocaleString("default", { month: "long", year: "numeric" });
 
     const getDateRange = () => {
         if (range === "all") return { from: undefined, to: undefined };
@@ -143,8 +167,8 @@ export default function AnalyticsPage() {
     });
 
     const thisMonthQuery = useQuery({
-        queryKey: ["analytics", "consistency-month", currentYear, currentMonth],
-        queryFn: () => api.analytics.consistency(currentYear, currentMonth),
+        queryKey: ["analytics", "consistency-month", thisMonthYear, thisMonthMonth],
+        queryFn: () => api.analytics.consistency(thisMonthYear, thisMonthMonth),
     });
 
     const prQuery = useQuery({
@@ -264,23 +288,48 @@ export default function AnalyticsPage() {
                         ) : (
                             <Card className="rounded-2xl border-border/80">
                                 <CardHeader className="pb-2">
-                                    <CardTitle className="flex items-center gap-2 text-lg">
-                                        <Calendar className="size-5" />
-                                        This month
-                                    </CardTitle>
-                                    <CardDescription>
-                                        {thisMonthQuery.isError
-                                            ? "Couldn't load this month."
-                                            : `Days with workouts: ${thisMonthData?.days?.length ?? 0}`}
-                                    </CardDescription>
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div>
+                                            <CardTitle className="flex items-center gap-2 text-lg">
+                                                <Calendar className="size-5" />
+                                                {isCurrentMonth ? "This month" : monthLabel}
+                                            </CardTitle>
+                                            <CardDescription>
+                                                {thisMonthQuery.isError
+                                                    ? "Couldn't load this month."
+                                                    : `Days with workouts: ${thisMonthData?.days?.length ?? 0}`}
+                                            </CardDescription>
+                                        </div>
+                                        <div className="flex items-center gap-0.5 rounded-lg bg-muted/60 p-0.5 shrink-0">
+                                            <button
+                                                type="button"
+                                                onClick={goPrevMonth}
+                                                className="size-8 flex items-center justify-center rounded-md hover:bg-background transition-colors text-muted-foreground hover:text-foreground"
+                                                aria-label="Previous month"
+                                            >
+                                                <ChevronLeft className="size-5" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={goNextMonth}
+                                                disabled={isCurrentMonth}
+                                                className={cn(
+                                                    "size-8 flex items-center justify-center rounded-md hover:bg-background transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
+                                                )}
+                                                aria-label="Next month"
+                                            >
+                                                <ChevronRight className="size-5" />
+                                            </button>
+                                        </div>
+                                    </div>
                                 </CardHeader>
                                 <CardContent>
                                     {thisMonthQuery.isError ? (
                                         <p className="text-sm text-muted-foreground py-4 text-center">Try again later.</p>
                                     ) : (
                                         <ThisMonthGrid
-                                            year={currentYear}
-                                            month={currentMonth}
+                                            year={thisMonthYear}
+                                            month={thisMonthMonth}
                                             days={thisMonthData?.days ?? []}
                                         />
                                     )}

@@ -13,7 +13,7 @@ type ViewMode = "day" | "week" | "month";
 
 function getDateRange(mode: ViewMode): { from_date: string; to_date: string } {
   const now = new Date();
-  const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
   let from: Date;
   switch (mode) {
     case "day":
@@ -25,7 +25,7 @@ function getDateRange(mode: ViewMode): { from_date: string; to_date: string } {
       from.setHours(0, 0, 0, 0);
       break;
     case "month":
-      from = new Date(now.getFullYear(), now.getMonth(), 1);
+      from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
       break;
   }
   return {
@@ -57,17 +57,50 @@ function getTimeOfDayLabel(date: Date): string {
   return "Evening";
 }
 
+/** YYYY-MM-DD for a date (local date of the workout) */
+function toDateKey(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+/** Build calendar cells for current month: empty slots + day numbers. month is 1-based. */
+function getMonthCalendarCells(year: number, month: number): { type: "empty" | "day"; day?: number; dateKey?: string }[] {
+  const first = new Date(year, month - 1, 1);
+  const last = new Date(year, month, 0);
+  const firstWeekday = first.getDay();
+  const daysInMonth = last.getDate();
+  const cells: { type: "empty" | "day"; day?: number; dateKey?: string }[] = [];
+  for (let i = 0; i < firstWeekday; i++) cells.push({ type: "empty" });
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateKey = `${year}-${month.toString().padStart(2, "0")}-${d.toString().padStart(2, "0")}`;
+    cells.push({ type: "day", day: d, dateKey });
+  }
+  return cells;
+}
+
 export default function WorkoutsListPage() {
   const [mode, setMode] = useState<ViewMode>("week");
 
   const { from_date, to_date } = useMemo(() => getDateRange(mode), [mode]);
 
   const { data: workouts = [], isLoading } = useQuery({
-    queryKey: ["workouts", mode, from_date],
+    queryKey: ["workouts", mode, from_date, to_date],
     queryFn: () => api.workouts.list(0, 200, from_date, to_date),
   });
 
   const grouped = useMemo(() => groupByDate(workouts), [workouts]);
+  const workoutDateKeys = useMemo(
+    () => new Set(workouts.map((w) => toDateKey(w.started_at))),
+    [workouts]
+  );
+  const now = new Date();
+  const currentMonthLabel =
+    mode === "month"
+      ? new Date(now.getFullYear(), now.getMonth(), 1).toLocaleString(undefined, { month: "long", year: "numeric" })
+      : null;
+  const monthCells =
+    mode === "month"
+      ? getMonthCalendarCells(now.getFullYear(), now.getMonth() + 1)
+      : [];
 
   return (
     <>
@@ -91,6 +124,36 @@ export default function WorkoutsListPage() {
             </button>
           ))}
         </div>
+
+        {/* Month view: header + calendar strip */}
+        {mode === "month" && (
+          <div className="mb-6">
+            <p className="text-sm font-semibold text-muted-foreground mb-3">{currentMonthLabel}</p>
+            <div className="grid grid-cols-7 gap-1 text-center">
+              {["S", "M", "T", "W", "T", "F", "S"].map((d) => (
+                <span key={d} className="text-[10px] font-medium text-muted-foreground/70 uppercase">
+                  {d}
+                </span>
+              ))}
+              {monthCells.map((cell, i) =>
+                cell.type === "empty" ? (
+                  <div key={`e-${i}`} className="aspect-square" />
+                ) : (
+                  <div
+                    key={cell.dateKey}
+                    className={`aspect-square rounded-lg flex items-center justify-center text-xs font-medium ${
+                      workoutDateKeys.has(cell.dateKey!)
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted/50 text-muted-foreground"
+                    }`}
+                  >
+                    {cell.day}
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        )}
 
         {isLoading && (
           <div className="space-y-2">
