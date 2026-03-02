@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -334,18 +334,55 @@ function BioSetupDialog({
 
 // ── Log Body Dialog ─────────────────────────────────────────────────
 // ── Log Body Dialog ─────────────────────────────────────────────────
+type MeasurementUnit = "cm" | "in";
+const IN_TO_CM = 2.54;
+
 function LogBodyDialog() {
     const queryClient = useQueryClient();
     const [open, setOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("weight");
     const [weight, setWeight] = useState("");
     const [measurements, setMeasurements] = useState<Record<string, string>>({});
+    const [measurementUnit, setMeasurementUnit] = useState<MeasurementUnit>("in");
 
     const { data: latestLog } = useQuery({
         queryKey: ["body-latest"],
         queryFn: () => api.body.getLatest(),
         enabled: open,
     });
+
+    // Pre-fill measurements from latest log when opening Measurements tab (stored in cm)
+    useEffect(() => {
+        if (open && activeTab === "measurements" && latestLog?.measurements && Object.keys(measurements).length === 0) {
+            const m: Record<string, string> = {};
+            Object.entries(latestLog.measurements).forEach(([k, v]) => {
+                if (v != null) {
+                    const val = typeof v === "number" ? v : parseFloat(String(v));
+                    if (!isNaN(val)) {
+                        m[k] = measurementUnit === "in" ? (val / IN_TO_CM).toFixed(1) : val.toString();
+                    }
+                }
+            });
+            setMeasurements(m);
+        }
+    }, [open, activeTab, latestLog?.measurements, measurementUnit]);
+
+    // Convert measurements when unit changes (state holds display values)
+    const prevUnitRef = useRef<MeasurementUnit>(measurementUnit);
+    useEffect(() => {
+        if (prevUnitRef.current !== measurementUnit && Object.keys(measurements).length > 0) {
+            const factor = measurementUnit === "in" ? 1 / IN_TO_CM : IN_TO_CM;
+            const m: Record<string, string> = {};
+            Object.entries(measurements).forEach(([k, v]) => {
+                const num = parseFloat(v);
+                if (!isNaN(num)) m[k] = (num * factor).toFixed(1);
+            });
+            setMeasurements(m);
+            prevUnitRef.current = measurementUnit;
+        } else {
+            prevUnitRef.current = measurementUnit;
+        }
+    }, [measurementUnit]);
 
     const mutation = useMutation({
         mutationFn: (data: BodyLogCreate) => api.body.createLog(data),
@@ -407,12 +444,18 @@ function LogBodyDialog() {
             setLogError("Enter at least one measurement.");
             return;
         }
-        const result = bodyLogCreateSchema.safeParse({ measurements: cleanMeasurements });
+        const result = bodyLogCreateSchema.safeParse({
+            measurements: cleanMeasurements,
+            measurement_unit: measurementUnit,
+        });
         if (!result.success) {
             setLogError(result.error.issues.map((i) => i.message).join(" ") || "Invalid measurements.");
             return;
         }
-        mutation.mutate({ measurements: result.data.measurements ?? undefined });
+        mutation.mutate({
+            measurements: result.data.measurements ?? undefined,
+            measurement_unit: result.data.measurement_unit,
+        });
     };
 
     const grouped = useMemo(() => {
@@ -478,6 +521,19 @@ function LogBodyDialog() {
                                 No body log yet? Log your weight on the <strong>Weight</strong> tab first, then you can add measurements here.
                             </p>
                         )}
+                        <div className="flex items-center justify-between gap-2">
+                            <Label className="text-xs text-muted-foreground">Units</Label>
+                            <Select value={measurementUnit} onValueChange={(v) => setMeasurementUnit(v as MeasurementUnit)}>
+                                <SelectTrigger className="w-24 h-8 rounded-lg">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="cm">cm</SelectItem>
+                                    <SelectItem value="in">in</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">Values are converted to cm for body fat calculations.</p>
                         <div className="rounded-xl border border-border/40 bg-card">
                             <Accordion type="single" collapsible className="w-full">
                                 {Object.entries(grouped).map(([group, keys], index) => (
@@ -515,7 +571,7 @@ function LogBodyDialog() {
                                                                 className="h-11 rounded-xl bg-muted/20 text-base"
                                                             />
                                                             <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
-                                                                cm
+                                                                {measurementUnit}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -861,7 +917,7 @@ export default function MePage() {
                     )}
 
                     {/* Weight Trend Chart */}
-                    {chartData.length > 0 && (
+                    {history.length > 0 && (
                         <Card className="border-border/40">
                             <CardHeader className="pb-2">
                                 <div className="flex items-center justify-between">
@@ -889,7 +945,15 @@ export default function MePage() {
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                <WeightChart data={chartData} />
+                                {chartData.length > 0 ? (
+                                    <WeightChart data={chartData} />
+                                ) : (
+                                    <div className="h-[200px] flex flex-col items-center justify-center text-center text-muted-foreground">
+                                        <TrendingUp className="size-10 mb-3 opacity-40" />
+                                        <p className="text-sm font-medium">No weight data in selected range</p>
+                                        <p className="text-xs mt-1">Try a longer time range or log a new weight entry.</p>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     )}
@@ -915,10 +979,22 @@ export default function MePage() {
                     )}
 
                     {/* Population Percentiles */}
-                    {currentPercentiles &&
-                        Object.keys(currentPercentiles).length > 0 && (
-                            <PercentileRadarChart percentiles={currentPercentiles} />
-                        )}
+                    {currentPercentiles && Object.keys(currentPercentiles).length > 0 ? (
+                        <PercentileRadarChart percentiles={currentPercentiles} />
+                    ) : (
+                        !isStatsLoading &&
+                        (latest || history.length > 0) && (
+                            <Card className="border-border/40">
+                                <CardContent className="py-8 text-center text-muted-foreground">
+                                    <Target className="size-10 mx-auto mb-3 opacity-40" />
+                                    <p className="font-medium">Relative Strength</p>
+                                    <p className="text-sm mt-1">
+                                        Add at least 3 measurements (chest, waist, hips, neck, etc.) in the Log Body dialog to see your percentile breakdown vs. U.S. adults.
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        )
+                    )}
 
 
 

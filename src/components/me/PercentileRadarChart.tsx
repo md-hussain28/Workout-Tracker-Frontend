@@ -47,7 +47,7 @@ export default function PercentileRadarChart({ percentiles }: Props) {
             .filter(([key]) => PERCENTILE_LABELS[key])
             .map(([key, value]) => ({
                 subject: PERCENTILE_LABELS[key],
-                value: Math.round(value),
+                value: Math.round(Math.max(0, Math.min(100, Number(value) || 0))),
                 fullMark: 100,
             }))
             .sort((a, b) => {
@@ -61,7 +61,25 @@ export default function PercentileRadarChart({ percentiles }: Props) {
             });
     }, [percentiles]);
 
-    if (data.length < 3) return null;
+    if (data.length < 3) {
+        return (
+            <Card className="border-border/40">
+                <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        <Target className="size-4 text-primary" />
+                        Relative Strength
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                    <Target className="size-10 mx-auto mb-3 opacity-40" />
+                    <p className="font-medium">Not enough data</p>
+                    <p className="text-sm mt-1">
+                        Add at least 3 measurements (chest, waist, hips, neck, shoulder, etc.) in Log Body to see your percentile breakdown.
+                    </p>
+                </CardContent>
+            </Card>
+        );
+    }
 
     return (
         <>

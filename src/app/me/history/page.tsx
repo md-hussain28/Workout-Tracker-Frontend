@@ -111,11 +111,20 @@ function EditableLogForm({ log, onSuccess }: { log: BodyLog; onSuccess: () => vo
         const local = new Date(d.getTime() - offset * 60000);
         return local.toISOString().slice(0, 16);
     });
+    const IN_TO_CM = 2.54;
+    const [measurementUnit, setMeasurementUnit] = useState<"in" | "cm">("in");
     const [measurements, setMeasurements] = useState<Record<string, string>>(() => {
         const m: Record<string, string> = {};
         if (log.measurements) {
             Object.entries(log.measurements).forEach(([k, v]) => {
-                if (v != null) m[k] = v.toString();
+                if (v != null) {
+                    const val = typeof v === "number" ? v : parseFloat(String(v));
+                    if (!isNaN(val)) {
+                        m[k] = (val / IN_TO_CM).toFixed(1);
+                    } else {
+                        m[k] = v.toString();
+                    }
+                }
             });
         }
         return m;
@@ -146,6 +155,7 @@ function EditableLogForm({ log, onSuccess }: { log: BodyLog; onSuccess: () => vo
             weight_kg: isNaN(w) ? undefined : w,
             body_fat_pct: isNaN(bf) ? null : bf,
             measurements: Object.keys(meas).length ? meas : undefined,
+            measurement_unit: Object.keys(meas).length ? measurementUnit : undefined,
             created_at: utcDate,
         };
         const result = bodyLogUpdateSchema.safeParse(payload);
@@ -220,7 +230,19 @@ function EditableLogForm({ log, onSuccess }: { log: BodyLog; onSuccess: () => vo
             </div>
 
             <div className="space-y-2">
-                <Label>Measurements</Label>
+                <div className="flex items-center justify-between">
+                    <Label>Measurements</Label>
+                    <Select value={measurementUnit} onValueChange={(v) => setMeasurementUnit(v as "in" | "cm")}>
+                        <SelectTrigger className="h-8 w-20 text-xs">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="in">in</SelectItem>
+                            <SelectItem value="cm">cm</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Values are converted to cm when saved.</p>
                 <div className="grid grid-cols-2 gap-2">
                     {MEASUREMENT_KEYS.map((bp) => (
                         <div key={bp.key} className="space-y-1">
@@ -345,12 +367,14 @@ function LogEntryCard({
                                     <div className="grid grid-cols-2 xs:grid-cols-3 gap-3 pb-4 pt-1">
                                         {Object.entries(log.measurements!).map(([key, val]) => {
                                             const label = BODY_PARTS.find((p) => p.key === key)?.label || key;
+                                            const num = typeof val === "number" ? val : parseFloat(String(val));
+                                            const displayVal = !isNaN(num) && num > 65 ? (num / 2.54).toFixed(1) : val;
                                             return (
                                                 <div key={key} className="flex flex-col bg-secondary/10 p-2 rounded-md border border-secondary/20">
                                                     <span className="text-[10px] text-muted-foreground uppercase tracking-wide truncate" title={label}>
                                                         {label}
                                                     </span>
-                                                    <span className="font-semibold text-sm">{val} <span className="text-[10px] sm:text-xs text-muted-foreground font-normal">cm</span></span>
+                                                    <span className="font-semibold text-sm">{displayVal} <span className="text-[10px] sm:text-xs text-muted-foreground font-normal">in</span></span>
                                                 </div>
                                             );
                                         })}
@@ -528,8 +552,8 @@ export default function BodyHistoryPage() {
     }, [mode, selectedPart, selectedGroup]);
 
     const unit = mode === "part"
-        ? (selectedPart === "weight" ? "kg" : selectedPart === "body_fat" ? "%" : "cm")
-        : "cm";
+        ? (selectedPart === "weight" ? "kg" : selectedPart === "body_fat" ? "%" : "in")
+        : "in";
 
     // Calculate Summary Stats
     const stats = useMemo(() => {

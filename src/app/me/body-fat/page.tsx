@@ -1,13 +1,19 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, TrendingUp, Droplets, Target } from "lucide-react";
+import { ArrowLeft, TrendingUp, Droplets, Target, Info } from "lucide-react";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import {
     LineChart,
     Line,
@@ -25,46 +31,87 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 
-// --- Configuration ---
+// Input keys for each algorithm: measurement key from log, display label, unit
+const INPUT_KEYS: Record<string, { key: string; label: string; unit: string }[]> = {
+    bf_army: [
+        { key: "weight_kg", label: "Weight", unit: "kg" },
+        { key: "waist", label: "Waist", unit: "in" },
+        { key: "sex", label: "Sex", unit: "" },
+    ],
+    bf_cun_bae: [
+        { key: "weight_kg", label: "Weight", unit: "kg" },
+        { key: "height_cm", label: "Height", unit: "cm" },
+        { key: "age", label: "Age", unit: "yrs" },
+        { key: "sex", label: "Sex", unit: "" },
+    ],
+    bf_rfm: [
+        { key: "height_cm", label: "Height", unit: "cm" },
+        { key: "waist", label: "Waist", unit: "in" },
+        { key: "sex", label: "Sex", unit: "" },
+    ],
+    bf_multi: [
+        { key: "weight_kg", label: "Weight", unit: "kg" },
+        { key: "height_cm", label: "Height", unit: "cm" },
+        { key: "waist", label: "Waist", unit: "in" },
+        { key: "chest", label: "Chest", unit: "in" },
+        { key: "hips", label: "Hips", unit: "in" },
+        { key: "sex", label: "Sex", unit: "" },
+    ],
+    bf_navy: [
+        { key: "height_cm", label: "Height", unit: "cm" },
+        { key: "waist", label: "Waist", unit: "in" },
+        { key: "neck", label: "Neck", unit: "in" },
+        { key: "hips", label: "Hips", unit: "in" },
+        { key: "sex", label: "Sex", unit: "" },
+    ],
+};
+
 const ALGORITHMS = [
     {
         key: "bf_army",
         name: "U.S. Army (2024)",
-        color: "#3b82f6", // blue-500
+        color: "#3b82f6",
         description: "2024 one-site equation. Uses abdomen (waist at navel) and weight. All measurements in cm.",
         formula: "Men: -27.05 + 2.06×abdomen(in) - 0.12×weight(kg). Women: -8.06 + 1.25×abdomen(in) - 0.004×weight(kg)",
+        requiredInputs: "Weight + Waist (≥30 cm). Use inches if you measure in inches.",
     },
     {
         key: "bf_cun_bae",
         name: "CUN-BAE",
-        color: "#8b5cf6", // violet-500
+        color: "#8b5cf6",
         description: "Clinica Universidad de Navarra. Uses BMI, age, and sex. Superior to standalone BMI in diverse populations.",
         formula: "-44.988 + (0.503×age) + (10.689×sex) + (3.172×BMI) - (0.026×BMI²) + ...",
+        requiredInputs: "Weight + Height + Age + Sex (from profile). No measurements needed.",
     },
     {
         key: "bf_rfm",
         name: "Relative Fat Mass (RFM)",
-        color: "#f59e0b", // amber-500
+        color: "#f59e0b",
         description: "Simple, waist-focused (waist at navel, in cm). Correlates well with DEXA.",
         formula: "Men: 64 - (20 × height/waist). Women: 76 - (20 × height/waist). Same units for height & waist.",
+        requiredInputs: "Height (profile) + Waist (≥30 cm). Use inches if you measure in inches.",
     },
     {
         key: "bf_multi",
         name: "Multi-Girth proxy",
-        color: "#ef4444", // red-500
+        color: "#ef4444",
         description: "Proxy regression utilizing waist, chest, hips and BMI for detailed approximation.",
         formula: "0.5×BMI + 0.4×waist + 0.2×hips - 0.3×chest - 15",
+        requiredInputs: "Weight + Waist + Chest + Hips (all three required, ≥30 cm waist). Use inches if you measure in inches.",
     },
     {
         key: "bf_navy",
         name: "U.S. Navy",
-        color: "#10b981", // emerald-500
+        color: "#10b981",
         description: "Waist at navel, neck below Adam's apple (cm). Women also need hips at widest point.",
         formula: "Men: 86.010×log10(waist−neck) − 70.041×log10(height) + 36.76. All in inches in formula.",
+        requiredInputs: "Height + Waist + Neck. Women: also Hips. Waist must be > neck and ≥30 cm.",
     },
 ];
 
 export default function BodyFatAnalyticsPage() {
+    const [infoAlgo, setInfoAlgo] = useState<string | null>(null);
+
     const { data: history = [], isLoading: isHistoryLoading } = useQuery({
         queryKey: ["body-history"],
         queryFn: () => api.body.listLogs(),
@@ -75,24 +122,60 @@ export default function BodyFatAnalyticsPage() {
         queryFn: () => api.body.getLatest(),
     });
 
+    const { data: bio } = useQuery({
+        queryKey: ["body-bio"],
+        queryFn: () => api.body.getBio(),
+    });
+
     const isLoading = isHistoryLoading || isLatestLoading;
 
-    // Latest value per algorithm: use most recent log that has that value (from history or latest)
-    const latestByAlgo = useMemo(() => {
-        const map: Record<string, number> = {};
+    // Latest value per algorithm + source log
+    const { latestByAlgo, logByAlgo } = useMemo(() => {
+        const valueMap: Record<string, number> = {};
+        const logMap: Record<string, (typeof history)[0]> = {};
         const sources = latest ? [latest, ...history.filter((l) => l.id !== latest.id)] : [...history];
         for (const log of sources) {
             const stats = log.computed_stats as unknown as Record<string, number | null> | undefined;
             if (!stats) continue;
             for (const { key } of ALGORITHMS) {
                 const v = stats[key];
-                if (v != null && typeof v === "number" && map[key] === undefined) {
-                    map[key] = v;
+                if (v != null && typeof v === "number" && valueMap[key] === undefined) {
+                    valueMap[key] = v;
+                    logMap[key] = log;
                 }
             }
         }
-        return map;
+        return { latestByAlgo: valueMap, logByAlgo: logMap };
     }, [history, latest]);
+
+    // Build inputs display for a given algorithm
+    const getInputsForAlgo = (algoKey: string): { label: string; value: string; unit: string }[] => {
+        const log = logByAlgo[algoKey];
+        const keys = INPUT_KEYS[algoKey];
+        if (!keys || !log) return [];
+
+        const meas = log.measurements ?? {};
+        const results: { label: string; value: string; unit: string }[] = [];
+
+        for (const { key, label, unit } of keys) {
+            let value: string | number | undefined;
+            if (key === "weight_kg") value = log.weight_kg;
+            else if (key === "height_cm") value = bio?.height_cm;
+            else if (key === "age") value = bio?.age;
+            else if (key === "sex") value = bio?.sex;
+            else value = (meas as Record<string, number>)[key];
+
+            if (value == null || value === "") continue;
+            const displayValue =
+                key === "sex"
+                    ? (value === "female" ? "Female" : "Male")
+                    : typeof value === "number"
+                      ? value.toFixed(1)
+                      : String(value);
+            results.push({ label, value: displayValue, unit: key === "sex" ? "" : unit });
+        }
+        return results;
+    };
 
     // --- Chart Data Processing ---
     const chartData = useMemo(() => {
@@ -251,6 +334,17 @@ export default function BodyFatAnalyticsPage() {
                                             <div className="flex items-center gap-3">
                                                 <div className="size-3 rounded-full shadow-sm" style={{ backgroundColor: algo.color }} />
                                                 <span className="font-semibold text-sm">{algo.name}</span>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="size-6 rounded-full shrink-0 text-muted-foreground hover:text-foreground"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setInfoAlgo(algo.key);
+                                                    }}
+                                                >
+                                                    <Info className="size-3.5" />
+                                                </Button>
                                             </div>
                                             <div className="text-right">
                                                 {latestValue != null ? (
@@ -267,6 +361,11 @@ export default function BodyFatAnalyticsPage() {
                                     </AccordionTrigger>
                                     <AccordionContent className="px-5 pb-5 pt-1 border-t border-border/40 bg-muted/10">
                                         <div className="space-y-3 pt-3">
+                                            {latestValue == null && (
+                                                <p className="text-sm font-medium text-amber-600 dark:text-amber-500">
+                                                    Needs: {algo.requiredInputs}
+                                                </p>
+                                            )}
                                             <p className="text-sm text-foreground leading-relaxed">
                                                 {algo.description}
                                             </p>
@@ -288,6 +387,39 @@ export default function BodyFatAnalyticsPage() {
                     Algorithms dynamically calculate upon logging.
                 </p>
             </div>
+
+            {/* Info modal: measurements used for selected algorithm */}
+            <Dialog open={!!infoAlgo} onOpenChange={(open) => !open && setInfoAlgo(null)}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="text-base">
+                            {infoAlgo && ALGORITHMS.find((a) => a.key === infoAlgo)?.name}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-2 pt-1">
+                        <p className="text-xs text-muted-foreground mb-3">
+                            Inputs used for this calculation (from your most recent log with a value):
+                        </p>
+                        {infoAlgo && getInputsForAlgo(infoAlgo).length > 0 ? (
+                            <ul className="space-y-2">
+                                {getInputsForAlgo(infoAlgo).map(({ label, value, unit }) => (
+                                    <li key={label} className="flex justify-between items-center text-sm">
+                                        <span className="text-muted-foreground">{label}</span>
+                                        <span className="font-medium tabular-nums">
+                                            {value}
+                                            {unit && <span className="text-muted-foreground font-normal ml-1">{unit}</span>}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="text-sm text-muted-foreground italic">
+                                No inputs available — add measurements and profile data to see what was used.
+                            </p>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

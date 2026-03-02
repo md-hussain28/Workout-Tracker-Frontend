@@ -24,10 +24,19 @@ async function fetchApi<T>(
       if (v !== undefined && v !== "") url.searchParams.set(k, String(v));
     });
   }
-  const res = await fetch(url.toString(), {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init.headers },
-  });
+  let res: Response;
+  try {
+    res = await fetch(url.toString(), {
+      ...init,
+      headers: { "Content-Type": "application/json", ...init.headers },
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes("fetch") || msg.includes("network") || msg.includes("Failed to fetch")) {
+      throw new Error("Cannot reach server. Check your connection and that the backend is running.");
+    }
+    throw e;
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(Array.isArray(err.detail) ? err.detail[0]?.msg : err.detail ?? res.statusText);
@@ -528,12 +537,14 @@ export interface BodyLogCreate {
   weight_kg?: number | null;
   body_fat_pct?: number | null;
   measurements?: Measurements | null;
+  measurement_unit?: "in" | "cm";
 }
 
 export interface BodyLogUpdate {
   weight_kg?: number | null;
   body_fat_pct?: number | null;
   measurements?: Measurements | null;
+  measurement_unit?: "in" | "cm";
   created_at?: string | null;
 }
 

@@ -307,6 +307,32 @@ export default function WorkoutDetailPage() {
   const endWorkoutMutation = useEndWorkout(workoutId);
   const deleteWorkoutMutation = useDeleteWorkout();
 
+  // Group sets by exercise — must be called unconditionally (Rules of Hooks)
+  const setsList = workout?.sets ?? [];
+  const groupedSets = useMemo(() => {
+    const groups = setsList.reduce<
+      { exercise: Exercise; sets: WorkoutSet[] }[]
+    >((acc, set) => {
+      if (!set.exercise) return acc;
+
+      const existing = acc.find((g) => g.exercise.id === set.exercise_id);
+      if (existing) {
+        existing.sets.push(set);
+      } else {
+        acc.push({ exercise: set.exercise, sets: [set] });
+      }
+      return acc;
+    }, []);
+
+    // Order groups by first occurrence in sets list (backend sends newest-first, so lower index = newer)
+    const setIndexById = new Map(setsList.map((s, i) => [s.id, i]));
+    return groups.sort((a, b) => {
+      const aMin = Math.min(...a.sets.map((s) => setIndexById.get(s.id) ?? 0));
+      const bMin = Math.min(...b.sets.map((s) => setIndexById.get(s.id) ?? 0));
+      return aMin - bMin;
+    });
+  }, [setsList]);
+
   function handleDeleteWorkout() {
     if (deleteWorkoutMutation.isPending) return;
     if (!window.confirm("Delete this entire workout? This cannot be undone.")) return;
@@ -342,32 +368,6 @@ export default function WorkoutDetailPage() {
     endWorkoutMutation.mutate(intensity);
     setEndDialogOpen(false);
   };
-
-  // Group sets by exercise, then sort so newest-added exercise is at top (first in list)
-  const setsList = workout.sets ?? [];
-  const groupedSets = useMemo(() => {
-    const groups = setsList.reduce<
-      { exercise: Exercise; sets: typeof workout.sets }[]
-    >((acc, set) => {
-      if (!set.exercise) return acc;
-
-      const existing = acc.find((g) => g.exercise.id === set.exercise_id);
-      if (existing) {
-        existing.sets.push(set);
-      } else {
-        acc.push({ exercise: set.exercise, sets: [set] });
-      }
-      return acc;
-    }, []);
-
-    // Order groups by first occurrence in sets list (backend sends newest-first, so lower index = newer)
-    const setIndexById = new Map(setsList.map((s, i) => [s.id, i]));
-    return groups.sort((a, b) => {
-      const aMin = Math.min(...a.sets.map((s) => setIndexById.get(s.id) ?? 0));
-      const bMin = Math.min(...b.sets.map((s) => setIndexById.get(s.id) ?? 0));
-      return aMin - bMin;
-    });
-  }, [workout.sets]);
 
   const existingExerciseIds = new Set(groupedSets.map((g) => g.exercise.id));
 

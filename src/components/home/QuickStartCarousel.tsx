@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Plus, Play, Timer, Loader2 } from "lucide-react";
 import { api, type Workout /* , type WorkoutTemplate */ } from "@/lib/api";
@@ -15,7 +15,9 @@ interface QuickStartCarouselProps {
 
 export function QuickStartCarousel({ activeWorkout }: QuickStartCarouselProps) {
     const router = useRouter();
+    const queryClient = useQueryClient();
     const [isStarting, setIsStarting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const { data: templates = [], isLoading: isTemplatesLoading } = useQuery({
         queryKey: ["templates"],
@@ -25,22 +27,28 @@ export function QuickStartCarousel({ activeWorkout }: QuickStartCarouselProps) {
     async function handleStartBlank() {
         if (isStarting || activeWorkout) return;
         setIsStarting(true);
+        setError(null);
         try {
             const workout = await api.workouts.create({});
+            queryClient.invalidateQueries({ queryKey: ["workouts"] });
             router.push(`/workouts/${workout.id}`);
-        } catch {
+        } catch (e) {
             setIsStarting(false);
+            setError(e instanceof Error ? e.message : "Failed to start workout");
         }
     }
 
     async function handleStartFromTemplate(templateId: string) {
         if (isStarting || activeWorkout) return;
         setIsStarting(true);
+        setError(null);
         try {
             const result = await api.templates.instantiate(templateId);
+            queryClient.invalidateQueries({ queryKey: ["workouts"] });
             router.push(`/workouts/${result.workout_id}`);
-        } catch {
+        } catch (e) {
             setIsStarting(false);
+            setError(e instanceof Error ? e.message : "Failed to start from template");
         }
     }
 
@@ -51,6 +59,9 @@ export function QuickStartCarousel({ activeWorkout }: QuickStartCarouselProps) {
                     <Loader2 className="size-12 animate-spin text-primary" />
                     <p className="text-muted-foreground font-medium">Starting workout…</p>
                 </div>
+            )}
+            {error && (
+                <p className="text-destructive text-sm mb-2 -mx-4 px-4">{error}</p>
             )}
         <div className="overflow-x-auto snap-x scrollbar-hide -mx-4 px-4">
             <div className="flex gap-3" style={{ width: "max-content" }}>

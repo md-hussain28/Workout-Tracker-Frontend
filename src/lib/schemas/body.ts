@@ -25,6 +25,7 @@ export const bodyLogCreateSchema = z.object({
   weight_kg: z.number().gt(20).lt(400).optional().nullable(),
   body_fat_pct: z.number().min(2).max(60).optional().nullable(),
   measurements: measurementsSchema.nullable().optional(),
+  measurement_unit: z.enum(["in", "cm"]).optional(),
 });
 
 /** Matches backend BodyLogUpdate. */
@@ -32,6 +33,7 @@ export const bodyLogUpdateSchema = z.object({
   weight_kg: z.number().gt(20).lt(400).optional().nullable(),
   body_fat_pct: z.number().min(2).max(60).optional().nullable(),
   measurements: measurementsSchema.nullable().optional(),
+  measurement_unit: z.enum(["in", "cm"]).optional(),
   created_at: z.string().optional().nullable(),
 });
 
