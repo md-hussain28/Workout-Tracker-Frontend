@@ -12,7 +12,7 @@ import {
     DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { WorkoutSetRow } from "./WorkoutSetRow";
-import { useAddSet, useUpdateSet, useDeleteSet, useDeleteExerciseSets } from "@/lib/hooks/use-workout";
+import { useAddSet, useUpdateSet, useDeleteSet, useDeleteExerciseSets, useWorkout } from "@/lib/hooks/use-workout";
 import { type WorkoutSet, type Exercise } from "@/lib/api";
 
 interface WorkoutExerciseCardProps {
@@ -24,20 +24,27 @@ interface WorkoutExerciseCardProps {
 
 export function WorkoutExerciseCard({ workoutId, exercise, sets, onOpenHistory }: WorkoutExerciseCardProps) {
     // ── Hooks ──
+    const { data: workout } = useWorkout(workoutId);
     const addSetMutation = useAddSet(workoutId);
     const updateSetMutation = useUpdateSet(workoutId);
     const deleteSetMutation = useDeleteSet(workoutId);
     const deleteExerciseSetsMutation = useDeleteExerciseSets(workoutId);
 
     // ── Handlers ──
+    const isTimeExercise = exercise.measurement_mode === "time";
+
     const handleAddSet = () => {
         if (addSetMutation.isPending) return;
-        const nextOrder = sets.length;
+        const allSets = workout?.sets ?? [];
+        const nextOrder = allSets.length > 0
+            ? Math.max(...allSets.map((s) => s.set_order)) + 1
+            : 0;
         addSetMutation.mutate({
             exercise_id: exercise.id,
             set_order: nextOrder,
-            weight: null, // Explicitly null to avoid backend defaulting to 0
+            weight: null,
             reps: null,
+            ...(isTimeExercise && { duration_seconds: null }),
         });
     };
 
@@ -45,6 +52,7 @@ export function WorkoutExerciseCard({ workoutId, exercise, sets, onOpenHistory }
         setId: string,
         weight: number | null,
         reps: number | null,
+        duration_seconds?: number | null,
         time_under_tension_seconds?: number | null,
         rest_seconds_after?: number | null,
     ) => {
@@ -53,6 +61,7 @@ export function WorkoutExerciseCard({ workoutId, exercise, sets, onOpenHistory }
             body: {
                 weight,
                 reps,
+                ...(isTimeExercise && duration_seconds !== undefined && { duration_seconds }),
                 time_under_tension_seconds: time_under_tension_seconds ?? null,
                 rest_seconds_after: rest_seconds_after ?? null,
             },
@@ -127,8 +136,8 @@ export function WorkoutExerciseCard({ workoutId, exercise, sets, onOpenHistory }
                 {/* Column Headers */}
                 <div className="grid grid-cols-[32px_1fr_1fr_40px] gap-3 px-4 py-2 bg-muted/30 border-y border-border/50 text-[10px] font-semibold text-muted-foreground tracking-wider mb-2">
                     <div className="text-center">SET</div>
-                    <div>{exercise.unit?.toUpperCase() || "KG"}</div>
-                    <div>REPS</div>
+                    <div>{isTimeExercise ? "DURATION" : (exercise.unit?.toUpperCase() || "KG")}</div>
+                    <div>{isTimeExercise ? "WEIGHT" : "REPS"}</div>
                     <div></div>
                 </div>
 
@@ -138,6 +147,7 @@ export function WorkoutExerciseCard({ workoutId, exercise, sets, onOpenHistory }
                         <WorkoutSetRow
                             key={set.id}
                             set={set}
+                            exercise={exercise}
                             index={i}
                             isLast={i === sortedSets.length - 1}
                             onUpdate={handleUpdateSet}

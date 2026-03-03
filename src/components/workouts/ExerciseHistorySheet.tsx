@@ -20,7 +20,10 @@ interface ExerciseHistorySheetProps {
     workoutId: string;
     open: boolean;
     onOpenChange: (v: boolean) => void;
+    /** For weight/reps exercises: tap a set to copy weight & reps */
     onApplyStats?: (weight: number, reps: number) => void;
+    /** For time-based exercises: tap a set to copy duration (and optional weight) */
+    onApplyDuration?: (durationSeconds: number, weight?: number) => void;
 }
 
 export function ExerciseHistorySheet({
@@ -30,7 +33,15 @@ export function ExerciseHistorySheet({
     open,
     onOpenChange,
     onApplyStats,
+    onApplyDuration,
 }: ExerciseHistorySheetProps) {
+    const { data: exercise } = useQuery({
+        queryKey: ["exercise", exerciseId],
+        queryFn: () => api.exercises.get(exerciseId),
+        enabled: open && !!exerciseId,
+    });
+    const isTimeExercise = exercise?.measurement_mode === "time";
+
     const { data: stats, isLoading, isError, error } = useQuery({
         queryKey: ["exerciseStats", exerciseId],
         queryFn: () => api.exercises.getStats(exerciseId),
@@ -57,7 +68,11 @@ export function ExerciseHistorySheet({
                         <History className="size-5" />
                         {exerciseName}
                     </SheetTitle>
-                    {onApplyStats && <p className="text-xs text-muted-foreground font-normal">Tap a set to copy stats</p>}
+                    {(onApplyStats || onApplyDuration) && (
+                        <p className="text-xs text-muted-foreground font-normal">
+                            {isTimeExercise ? "Tap a set to copy duration" : "Tap a set to copy stats"}
+                        </p>
+                    )}
                 </SheetHeader>
 
                 {isLoading && (
@@ -100,19 +115,25 @@ export function ExerciseHistorySheet({
                     <div className="mt-4 space-y-4">
                         {/* PRs & Stats */}
                         <div className="grid grid-cols-3 gap-2">
-                            {stats.prs.best_weight != null && (
+                            {isTimeExercise && stats.prs.best_duration != null && (
+                                <div className="bg-muted/50 rounded-xl p-2.5 text-center">
+                                    <p className="text-xs text-muted-foreground">Best Duration</p>
+                                    <p className="font-bold tabular-nums">{stats.prs.best_duration}s</p>
+                                </div>
+                            )}
+                            {!isTimeExercise && stats.prs.best_weight != null && (
                                 <div className="bg-muted/50 rounded-xl p-2.5 text-center">
                                     <p className="text-xs text-muted-foreground">Best Weight</p>
                                     <p className="font-bold tabular-nums">{stats.prs.best_weight}</p>
                                 </div>
                             )}
-                            {stats.prs.best_1rm != null && (
+                            {!isTimeExercise && stats.prs.best_1rm != null && (
                                 <div className="bg-muted/50 rounded-xl p-2.5 text-center">
                                     <p className="text-xs text-muted-foreground">Est. 1RM</p>
                                     <p className="font-bold tabular-nums">{Math.round(stats.prs.best_1rm)}</p>
                                 </div>
                             )}
-                            {stats.prs.best_reps != null && (
+                            {!isTimeExercise && stats.prs.best_reps != null && (
                                 <div className="bg-muted/50 rounded-xl p-2.5 text-center">
                                     <p className="text-xs text-muted-foreground">Best Reps</p>
                                     <p className="font-bold tabular-nums">{stats.prs.best_reps}</p>
@@ -129,21 +150,41 @@ export function ExerciseHistorySheet({
                                 <div className="space-y-1">
                                     {prev.sets
                                         .sort((a, b) => a.set_order - b.set_order)
-                                        .map((s, idx) => (
-                                            <button
-                                                key={s.id}
-                                                className="w-full flex items-center gap-3 text-sm bg-muted/30 rounded-lg px-3 py-2 hover:bg-muted/50 active:bg-muted transition-colors"
-                                                onClick={() => s.weight != null && s.reps != null && onApplyStats?.(s.weight, s.reps)}
-                                            >
-                                                <span className="text-muted-foreground w-6 text-xs text-left">{idx + 1}</span>
-                                                <span className="font-medium tabular-nums">{s.weight ?? "—"}</span>
-                                                <span className="text-muted-foreground">×</span>
-                                                <span className="font-medium tabular-nums">{s.reps ?? (s.duration_seconds ? `${s.duration_seconds}s` : "—")}</span>
-                                                {s.set_label && (
-                                                    <Badge variant="outline" className="text-[10px] ml-auto">{s.set_label}</Badge>
-                                                )}
-                                            </button>
-                                        ))}
+                                        .map((s, idx) => {
+                                            if (isTimeExercise) {
+                                                const duration = s.duration_seconds;
+                                                const canApply = duration != null && onApplyDuration;
+                                                return (
+                                                    <button
+                                                        key={s.id}
+                                                        className="w-full flex items-center gap-3 text-sm bg-muted/30 rounded-lg px-3 py-2 hover:bg-muted/50 active:bg-muted transition-colors"
+                                                        onClick={() => canApply && onApplyDuration(duration, s.weight ?? undefined)}
+                                                    >
+                                                        <span className="text-muted-foreground w-6 text-xs text-left">{idx + 1}</span>
+                                                        <span className="font-medium tabular-nums">{duration != null ? `${duration}s` : "—"}</span>
+                                                        {s.weight != null && <span className="text-muted-foreground">@ {s.weight} kg</span>}
+                                                        {s.set_label && (
+                                                            <Badge variant="outline" className="text-[10px] ml-auto">{s.set_label}</Badge>
+                                                        )}
+                                                    </button>
+                                                );
+                                            }
+                                            return (
+                                                <button
+                                                    key={s.id}
+                                                    className="w-full flex items-center gap-3 text-sm bg-muted/30 rounded-lg px-3 py-2 hover:bg-muted/50 active:bg-muted transition-colors"
+                                                    onClick={() => s.weight != null && s.reps != null && onApplyStats?.(s.weight, s.reps)}
+                                                >
+                                                    <span className="text-muted-foreground w-6 text-xs text-left">{idx + 1}</span>
+                                                    <span className="font-medium tabular-nums">{s.weight ?? "—"}</span>
+                                                    <span className="text-muted-foreground">×</span>
+                                                    <span className="font-medium tabular-nums">{s.reps ?? (s.duration_seconds ? `${s.duration_seconds}s` : "—")}</span>
+                                                    {s.set_label && (
+                                                        <Badge variant="outline" className="text-[10px] ml-auto">{s.set_label}</Badge>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
                                 </div>
                             </div>
                         )}

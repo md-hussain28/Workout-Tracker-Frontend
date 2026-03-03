@@ -63,23 +63,24 @@ function ThisMonthGrid({
             <div className="grid grid-cols-7 gap-1">
                 {cells.map((date, i) => {
                     if (!date) return <div key={`empty-${i}`} />;
-                    const data = byDate[toDateKey(date)];
+                    const data = byDate[date];
                     const hasWorkout = !!data;
                     return (
-                        <div
+                        <Link
                             key={date}
+                            href={`/workouts?date=${date}`}
                             className={cn(
-                                "aspect-square rounded-lg flex items-center justify-center text-xs font-medium",
+                                "aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-colors hover:ring-2 hover:ring-primary/50",
                                 hasWorkout ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground"
                             )}
                             title={
                                 hasWorkout
-                                    ? `${data.duration_seconds ? `${Math.round(data.duration_seconds / 60)} min` : ""} ${data.tonnage ? `· ${Math.round(data.tonnage)} kg` : ""}`
-                                    : undefined
+                                    ? `${data.duration_seconds ? `${Math.round(data.duration_seconds / 60)} min` : ""} ${data.tonnage ? `· ${Math.round(data.tonnage)} kg` : ""} — Tap to view workouts`
+                                    : "Tap to view"
                             }
                         >
                             {new Date(date).getDate()}
-                        </div>
+                        </Link>
                     );
                 })}
             </div>

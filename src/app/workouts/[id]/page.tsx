@@ -89,11 +89,13 @@ import { ExerciseHistorySheet } from "@/components/workouts/ExerciseHistorySheet
 // ── Exercise Picker (Modal – stays above keyboard on mobile via visualViewport) ──
 function ExercisePickerModal({
   workoutId,
+  workoutSets,
   existingExerciseIds,
   open,
   onOpenChange,
 }: {
   workoutId: string;
+  workoutSets: { set_order: number }[];
   existingExerciseIds: Set<string>;
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -147,11 +149,16 @@ function ExercisePickerModal({
 
   function handleSelect(ex: Exercise) {
     if (addSetMutation.isPending) return;
+    const nextSetOrder = workoutSets.length > 0
+      ? Math.max(...workoutSets.map((s) => s.set_order)) + 1
+      : 0;
+    const isTime = ex.measurement_mode === "time";
     const payload: AddSetPayload = {
       exercise_id: ex.id,
-      set_order: 0,
+      set_order: nextSetOrder,
       weight: null,
       reps: null,
+      ...(isTime && { duration_seconds: null }),
       exercise: ex,
     };
     addSetMutation.mutate(payload);
@@ -672,6 +679,7 @@ export default function WorkoutDetailPage() {
       {/* Exercise Picker Modal */}
       <ExercisePickerModal
         workoutId={workout.id}
+        workoutSets={workout.sets ?? []}
         existingExerciseIds={existingExerciseIds}
         open={exercisePickerOpen}
         onOpenChange={setExercisePickerOpen}

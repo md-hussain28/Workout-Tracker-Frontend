@@ -152,11 +152,12 @@ export default function ExerciseEditPage() {
                 </SelectContent>
               </Select>
             </div>
-            {currentMode === "weight_reps" && (
+            {(currentMode === "weight_reps" || currentMode === "time") && (
               <div className="space-y-2">
                 <Label htmlFor="unit">Unit</Label>
                 <Input
                   id="unit"
+                  placeholder={currentMode === "time" ? "sec" : "kg"}
                   value={currentUnit}
                   onChange={(e) => setUnit(e.target.value)}
                   className="rounded-xl"

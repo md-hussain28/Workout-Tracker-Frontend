@@ -22,7 +22,7 @@ import { MuscleGroupPicker } from "@/components/MuscleGroupPicker";
 const MEASUREMENT_MODES: { value: MeasurementMode; label: string }[] = [
   { value: "weight_reps", label: "Weight × Reps" },
   { value: "bodyweight_reps", label: "Bodyweight × Reps" },
-  { value: "time", label: "Time" },
+  { value: "time", label: "Time (e.g. plank, bar hold)" },
 ];
 
 export default function NewExercisePage() {
@@ -38,6 +38,9 @@ export default function NewExercisePage() {
   const [description, setDescription] = useState("");
   const [unit, setUnit] = useState("kg");
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>("weight_reps");
+
+  // When switching to time mode, default unit to sec
+  const effectiveUnit = measurementMode === "time" ? (unit || "sec") : unit;
   const [primaryId, setPrimaryId] = useState<string>("");
   const [secondaryId, setSecondaryId] = useState<string>("");
   const [tertiaryId, setTertiaryId] = useState<string>("");
@@ -63,7 +66,7 @@ export default function NewExercisePage() {
     createMutation.mutate({
       name: name.trim(),
       description: description.trim() || null,
-      unit,
+      unit: measurementMode === "time" ? (unit.trim() || "sec") : unit,
       measurement_mode: measurementMode,
       primary_muscle_group_id: primaryId,
       secondary_muscle_group_id: secondaryId && secondaryId !== "none" ? secondaryId : null,
@@ -116,7 +119,11 @@ export default function NewExercisePage() {
               <Label>Measurement</Label>
               <Select
                 value={measurementMode}
-                onValueChange={(v) => setMeasurementMode(v as MeasurementMode)}
+                onValueChange={(v) => {
+                  const mode = v as MeasurementMode;
+                  setMeasurementMode(mode);
+                  if (mode === "time" && unit === "kg") setUnit("sec");
+                }}
               >
                 <SelectTrigger className="rounded-xl">
                   <SelectValue />
@@ -129,14 +136,19 @@ export default function NewExercisePage() {
                   ))}
                 </SelectContent>
               </Select>
+              {measurementMode === "time" && (
+                <p className="text-xs text-muted-foreground">
+                  Track how long you hold (plank, dead hang, L-sit, etc.). Optional weight for weighted holds.
+                </p>
+              )}
             </div>
-            {measurementMode === "weight_reps" && (
+            {(measurementMode === "weight_reps" || measurementMode === "time") && (
               <div className="space-y-2">
                 <Label htmlFor="unit">Unit</Label>
                 <Input
                   id="unit"
-                  placeholder="kg"
-                  value={unit}
+                  placeholder={measurementMode === "time" ? "sec" : "kg"}
+                  value={effectiveUnit}
                   onChange={(e) => setUnit(e.target.value)}
                   className="rounded-xl"
                 />

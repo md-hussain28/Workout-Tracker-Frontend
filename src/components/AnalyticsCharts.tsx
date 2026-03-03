@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useEffect } from "react";
 import {
     LineChart,
@@ -584,14 +585,15 @@ export function ConsistencyHeatmap({
                                         const hasWorkout = !!data;
                                         const intensity = hasWorkout && maxTonnage > 0 ? Math.min(1, data.tonnage / maxTonnage) : 0;
                                         return (
-                                            <div
+                                            <Link
                                                 key={day.dateStr}
-                                                className={`size-3 rounded-[2px] flex items-center justify-center transition-all hover:ring-1 cursor-crosshair z-0 hover:z-10 hover:ring-primary/50 hover:scale-125 ${!hasWorkout ? "border border-border bg-muted/40" : ""}`}
+                                                href={`/workouts?date=${day.dateStr}`}
+                                                className={`size-3 rounded-[2px] flex items-center justify-center transition-all hover:ring-1 cursor-pointer z-0 hover:z-10 hover:ring-primary/50 hover:scale-125 ${!hasWorkout ? "border border-border bg-muted/40" : ""}`}
                                                 style={hasWorkout ? {
                                                     backgroundColor: "var(--primary)",
                                                     opacity: 0.4 + 0.6 * intensity,
                                                 } : undefined}
-                                                title={hasWorkout ? `${new Date(day.dateStr).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}: ${Math.round(data.tonnage).toLocaleString()} kg` : `${new Date(day.dateStr).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}: Rest day`}
+                                                title={hasWorkout ? `${new Date(day.dateStr).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}: ${Math.round(data.tonnage).toLocaleString()} kg — Tap to view` : `${new Date(day.dateStr).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}: Rest day — Tap to view`}
                                             />
                                         );
                                     })}

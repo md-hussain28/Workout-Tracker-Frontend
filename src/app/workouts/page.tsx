@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Calendar, Clock, Dumbbell } from "lucide-react";
 import { api, type Workout } from "@/lib/api";
@@ -11,23 +13,33 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 type ViewMode = "day" | "week" | "month";
 
-function getDateRange(mode: ViewMode): { from_date: string; to_date: string } {
+function getDateRange(mode: ViewMode, dateParam?: string | null): { from_date: string; to_date: string } {
   const now = new Date();
-  const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
   let from: Date;
-  switch (mode) {
-    case "day":
-      from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      break;
-    case "week":
-      from = new Date(now);
-      from.setDate(now.getDate() - 6);
-      from.setHours(0, 0, 0, 0);
-      break;
-    case "month":
-      from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-      break;
+  let to: Date;
+
+  if (dateParam) {
+    // Single date from URL: YYYY-MM-DD
+    const [y, m, d] = dateParam.split("-").map(Number);
+    from = new Date(y, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0);
+    to = new Date(y, (m ?? 1) - 1, d ?? 1, 23, 59, 59, 999);
+  } else {
+    to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    switch (mode) {
+      case "day":
+        from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        break;
+      case "week":
+        from = new Date(now);
+        from.setDate(now.getDate() - 6);
+        from.setHours(0, 0, 0, 0);
+        break;
+      case "month":
+        from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+        break;
+    }
   }
+
   return {
     from_date: from.toISOString(),
     to_date: to.toISOString(),
@@ -78,9 +90,21 @@ function getMonthCalendarCells(year: number, month: number): { type: "empty" | "
 }
 
 export default function WorkoutsListPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const dateParam = searchParams.get("date");
   const [mode, setMode] = useState<ViewMode>("week");
 
-  const { from_date, to_date } = useMemo(() => getDateRange(mode), [mode]);
+  // When ?date= is present, show that day's workouts
+  const { from_date, to_date } = useMemo(
+    () => getDateRange(dateParam ? "day" : mode, dateParam),
+    [mode, dateParam]
+  );
+
+  // Sync mode to "day" when date param is present
+  useEffect(() => {
+    if (dateParam) setMode("day");
+  }, [dateParam]);
 
   const { data: workouts = [], isLoading } = useQuery({
     queryKey: ["workouts", mode, from_date, to_date],
@@ -93,13 +117,15 @@ export default function WorkoutsListPage() {
     [workouts]
   );
   const now = new Date();
+  const displayYear = dateParam ? parseInt(dateParam.slice(0, 4), 10) : now.getFullYear();
+  const displayMonth = dateParam ? parseInt(dateParam.slice(5, 7), 10) : now.getMonth() + 1;
   const currentMonthLabel =
-    mode === "month"
-      ? new Date(now.getFullYear(), now.getMonth(), 1).toLocaleString(undefined, { month: "long", year: "numeric" })
+    mode === "month" || dateParam
+      ? new Date(displayYear, displayMonth - 1, 1).toLocaleString(undefined, { month: "long", year: "numeric" })
       : null;
   const monthCells =
-    mode === "month"
-      ? getMonthCalendarCells(now.getFullYear(), now.getMonth() + 1)
+    mode === "month" || dateParam
+      ? getMonthCalendarCells(displayYear, displayMonth)
       : [];
 
   return (
@@ -114,19 +140,23 @@ export default function WorkoutsListPage() {
           {(["day", "week", "month"] as ViewMode[]).map((m) => (
             <button
               key={m}
-              onClick={() => setMode(m)}
-              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode === m
+              type="button"
+              onClick={() => {
+                setMode(m);
+                if (dateParam && m !== "day") router.push("/workouts");
+              }}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode === m || (dateParam && m === "day")
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
                 }`}
             >
-              {m === "day" ? "Today" : m === "week" ? "This Week" : "This Month"}
+              {m === "day" ? (dateParam ? "Selected Day" : "Today") : m === "week" ? "This Week" : "This Month"}
             </button>
           ))}
         </div>
 
-        {/* Month view: header + calendar strip */}
-        {mode === "month" && (
+        {/* Month view or single-date view: header + calendar strip */}
+        {(mode === "month" || dateParam) && (
           <div className="mb-6">
             <p className="text-sm font-semibold text-muted-foreground mb-3">{currentMonthLabel}</p>
             <div className="grid grid-cols-7 gap-1 text-center">
@@ -139,16 +169,17 @@ export default function WorkoutsListPage() {
                 cell.type === "empty" ? (
                   <div key={`e-${i}`} className="aspect-square" />
                 ) : (
-                  <div
+                  <Link
                     key={cell.dateKey}
-                    className={`aspect-square rounded-lg flex items-center justify-center text-xs font-medium ${
+                    href={`/workouts?date=${cell.dateKey}`}
+                    className={`aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-colors hover:ring-2 hover:ring-primary/50 ${
                       workoutDateKeys.has(cell.dateKey!)
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted/50 text-muted-foreground"
-                    }`}
+                    } ${dateParam === cell.dateKey ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
                   >
                     {cell.day}
-                  </div>
+                  </Link>
                 )
               )}
             </div>

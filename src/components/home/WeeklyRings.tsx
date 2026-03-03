@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Check } from "lucide-react";
@@ -62,7 +63,11 @@ export function WeeklyRings() {
                 const trained = trainedDates.has(dateStr);
 
                 return (
-                    <div key={i} className="flex flex-col items-center gap-1.5">
+                    <Link
+                        key={i}
+                        href={`/workouts?date=${dateStr}`}
+                        className="flex flex-col items-center gap-1.5 cursor-pointer"
+                    >
                         <span className={`text-[10px] font-semibold tracking-wider uppercase ${isToday ? "text-primary" : "text-muted-foreground/60"}`}>
                             {DAYS[i]}
                         </span>
@@ -121,7 +126,7 @@ export function WeeklyRings() {
                                 )}
                             </div>
                         </motion.div>
-                    </div>
+                    </Link>
                 );
             })}
         </div>
