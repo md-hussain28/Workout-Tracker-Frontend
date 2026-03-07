@@ -21,6 +21,7 @@ import {
   Sparkles,
   CalendarDays,
   Loader2,
+  Coffee,
 } from "lucide-react";
 import { api, type Exercise, type WorkoutWithSets, type WorkoutSet, type WorkoutSetCreate } from "@/lib/api";
 import { useWorkout, useAddSet, useUpdateSet, useDeleteSet, useEndWorkout, useDeleteWorkout, useDeleteExerciseSets, type AddSetPayload } from "@/lib/hooks/use-workout";
@@ -35,7 +36,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
+import { RestTimer } from "@/components/workouts/RestTimer";
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -305,6 +313,8 @@ export default function WorkoutDetailPage() {
   const queryClient = useQueryClient();
   const workoutId = params.id;
   const [exercisePickerOpen, setExercisePickerOpen] = useState(false);
+  const [restTimerOpen, setRestTimerOpen] = useState(false);
+  const [restTimerAutoStart, setRestTimerAutoStart] = useState(false);
   const [editingDate, setEditingDate] = useState(false);
   const [editingEndDate, setEditingEndDate] = useState(false);
   const [historyExercise, setHistoryExercise] = useState<{ id: string; name: string } | null>(null);
@@ -581,12 +591,11 @@ export default function WorkoutDetailPage() {
               exercise={exercise}
               sets={sets}
               onOpenHistory={() => {
-                // We'll implemented a local state for this if needed, 
-                // but since the HistorySheet is now independent, we can let the card handle it
-                // OR we can lift the state up if we want only one sheet.
-                // For now, let's use a simple per-exercise state inside the map?
-                // Actually, duplicate sheets are heavy. Ideally we use one global sheet state in this Page.
                 setHistoryExercise({ id: exercise.id, name: exercise.name });
+              }}
+              onSetSaved={() => {
+                setRestTimerAutoStart(true);
+                setRestTimerOpen(true);
               }}
             />
           ))}
@@ -674,6 +683,39 @@ export default function WorkoutDetailPage() {
             <SaveAsTemplateButton workoutId={workout.id} />
           )}
         </div>
+      )}
+
+      {/* Rest Timer Sheet (active workout only) */}
+      {isActive && (
+        <Sheet
+          open={restTimerOpen}
+          onOpenChange={(open) => {
+            setRestTimerOpen(open);
+            if (!open) setRestTimerAutoStart(false);
+          }}
+        >
+          <SheetContent side="bottom" className="rounded-t-2xl pt-6 pb-10">
+            <SheetHeader>
+              <SheetTitle>Rest timer</SheetTitle>
+            </SheetHeader>
+            <RestTimer
+              autoStartOnMount={restTimerAutoStart}
+              onAutoStartDone={() => setRestTimerAutoStart(false)}
+            />
+          </SheetContent>
+        </Sheet>
+      )}
+
+      {/* Rest FAB (active workout only) */}
+      {isActive && (
+        <button
+          type="button"
+          onClick={() => setRestTimerOpen(true)}
+          className="fixed bottom-[calc(72px+max(env(safe-area-inset-bottom),8px)+16px)] left-5 z-40 flex size-14 items-center justify-center rounded-full bg-muted border border-border shadow-md text-foreground transition-transform hover:scale-105 active:scale-95"
+          aria-label="Open rest timer"
+        >
+          <Coffee className="size-6" />
+        </button>
       )}
 
       {/* Exercise Picker Modal */}

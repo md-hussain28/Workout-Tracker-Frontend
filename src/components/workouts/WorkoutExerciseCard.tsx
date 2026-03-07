@@ -20,9 +20,11 @@ interface WorkoutExerciseCardProps {
     exercise: Exercise;
     sets: WorkoutSet[];
     onOpenHistory: () => void;
+    /** Called when a set is successfully saved (e.g. to open and start rest timer). */
+    onSetSaved?: () => void;
 }
 
-export function WorkoutExerciseCard({ workoutId, exercise, sets, onOpenHistory }: WorkoutExerciseCardProps) {
+export function WorkoutExerciseCard({ workoutId, exercise, sets, onOpenHistory, onSetSaved }: WorkoutExerciseCardProps) {
     // ── Hooks ──
     const { data: workout } = useWorkout(workoutId);
     const addSetMutation = useAddSet(workoutId);
@@ -56,16 +58,21 @@ export function WorkoutExerciseCard({ workoutId, exercise, sets, onOpenHistory }
         time_under_tension_seconds?: number | null,
         rest_seconds_after?: number | null,
     ) => {
-        updateSetMutation.mutate({
-            setId,
-            body: {
-                weight,
-                reps,
-                ...(isTimeExercise && duration_seconds !== undefined && { duration_seconds }),
-                time_under_tension_seconds: time_under_tension_seconds ?? null,
-                rest_seconds_after: rest_seconds_after ?? null,
+        updateSetMutation.mutate(
+            {
+                setId,
+                body: {
+                    weight,
+                    reps,
+                    ...(isTimeExercise && duration_seconds !== undefined && { duration_seconds }),
+                    time_under_tension_seconds: time_under_tension_seconds ?? null,
+                    rest_seconds_after: rest_seconds_after ?? null,
+                },
             },
-        });
+            {
+                onSuccess: () => onSetSaved?.(),
+            }
+        );
     };
 
     const handleDeleteSet = (setId: string) => {
