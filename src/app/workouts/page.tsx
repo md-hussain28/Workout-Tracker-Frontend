@@ -5,21 +5,30 @@ import { useRouter } from "next/navigation";
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Calendar, Clock, Dumbbell } from "lucide-react";
-import { api, type Workout } from "@/lib/api";
+import { Plus, Calendar, ChevronLeft, ChevronRight, Dumbbell } from "lucide-react";
+import { api, type Workout, type MuscleGroup } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
+/** Default colors for muscle groups that don't have one assigned (by index). */
+const DEFAULT_MUSCLE_COLORS = [
+  "#ef4444", "#f97316", "#22c55e", "#3b82f6", "#6366f1", "#a855f7", "#ec4899", "#06b6d4", "#64748b",
+];
+
 type ViewMode = "day" | "week" | "month";
 
-function getDateRange(mode: ViewMode, dateParam?: string | null): { from_date: string; to_date: string } {
+function getDateRange(
+  mode: ViewMode,
+  dateParam?: string | null,
+  calendarYear?: number,
+  calendarMonth?: number
+): { from_date: string; to_date: string } {
   const now = new Date();
   let from: Date;
   let to: Date;
 
   if (dateParam) {
-    // Single date from URL: YYYY-MM-DD
     const [y, m, d] = dateParam.split("-").map(Number);
     from = new Date(y, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0);
     to = new Date(y, (m ?? 1) - 1, d ?? 1, 23, 59, 59, 999);
@@ -34,9 +43,14 @@ function getDateRange(mode: ViewMode, dateParam?: string | null): { from_date: s
         from.setDate(now.getDate() - 6);
         from.setHours(0, 0, 0, 0);
         break;
-      case "month":
-        from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      case "month": {
+        const y = calendarYear ?? now.getFullYear();
+        const m = calendarMonth ?? now.getMonth() + 1;
+        from = new Date(y, m - 1, 1, 0, 0, 0, 0);
+        const lastDay = new Date(y, m, 0);
+        to = new Date(y, m - 1, lastDay.getDate(), 23, 59, 59, 999);
         break;
+      }
     }
   }
 
@@ -93,22 +107,49 @@ export default function WorkoutsListPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dateParam = searchParams.get("date");
+  const now = new Date();
   const [mode, setMode] = useState<ViewMode>("week");
+  const [calendarYear, setCalendarYear] = useState(() => now.getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(() => now.getMonth() + 1);
 
-  // When ?date= is present, show that day's workouts
+  // Displayed month: from URL date or from calendar state
+  const displayYear = dateParam ? parseInt(dateParam.slice(0, 4), 10) : calendarYear;
+  const displayMonth = dateParam ? parseInt(dateParam.slice(5, 7), 10) : calendarMonth;
+
   const { from_date, to_date } = useMemo(
-    () => getDateRange(dateParam ? "day" : mode, dateParam),
-    [mode, dateParam]
+    () => getDateRange(dateParam ? "day" : mode, dateParam, calendarYear, calendarMonth),
+    [mode, dateParam, calendarYear, calendarMonth]
   );
 
-  // Sync mode to "day" when date param is present
   useEffect(() => {
     if (dateParam) setMode("day");
   }, [dateParam]);
 
+  // Keep calendar in sync when switching to month view
+  useEffect(() => {
+    if (mode === "month" && !dateParam) {
+      setCalendarYear(now.getFullYear());
+      setCalendarMonth(now.getMonth() + 1);
+    }
+  }, [mode, dateParam]);
+
   const { data: workouts = [], isLoading } = useQuery({
     queryKey: ["workouts", mode, from_date, to_date],
     queryFn: () => api.workouts.list(0, 200, from_date, to_date),
+  });
+
+  // For calendar muscle colors: fetch volume by muscle for the displayed month
+  const monthStart = new Date(displayYear, displayMonth - 1, 1);
+  const monthEnd = new Date(displayYear, displayMonth, 0, 23, 59, 59, 999);
+  const { data: volumeHistory = [] } = useQuery({
+    queryKey: ["analytics", "volume-history-by-muscle", displayYear, displayMonth],
+    queryFn: () => api.analytics.volumeHistory(monthStart.toISOString(), monthEnd.toISOString()),
+    enabled: mode === "month" || !!dateParam,
+  });
+  const { data: muscleGroups = [] } = useQuery({
+    queryKey: ["muscleGroups"],
+    queryFn: () => api.muscleGroups.list(),
+    enabled: mode === "month" || !!dateParam,
   });
 
   const grouped = useMemo(() => groupByDate(workouts), [workouts]);
@@ -116,9 +157,30 @@ export default function WorkoutsListPage() {
     () => new Set(workouts.map((w) => toDateKey(w.started_at))),
     [workouts]
   );
-  const now = new Date();
-  const displayYear = dateParam ? parseInt(dateParam.slice(0, 4), 10) : now.getFullYear();
-  const displayMonth = dateParam ? parseInt(dateParam.slice(5, 7), 10) : now.getMonth() + 1;
+
+  // Per-day muscles (name → volume), sorted by volume desc; and muscle name → color
+  const dayMuscles = useMemo(() => {
+    const byDate: Record<string, { name: string; volume: number }[]> = {};
+    for (const row of volumeHistory as { date: string; [k: string]: unknown }[]) {
+      const dateKey = toDateKey(row.date);
+      const entries = Object.entries(row)
+        .filter(([k]) => k !== "date")
+        .map(([name, vol]) => ({ name, volume: Number(vol) || 0 }))
+        .filter((e) => e.volume > 0)
+        .sort((a, b) => b.volume - a.volume);
+      if (entries.length) byDate[dateKey] = entries;
+    }
+    return byDate;
+  }, [volumeHistory]);
+
+  const muscleNameToColor = useMemo(() => {
+    const map: Record<string, string> = {};
+    muscleGroups.forEach((mg: MuscleGroup, i: number) => {
+      map[mg.name] = mg.color ?? DEFAULT_MUSCLE_COLORS[i % DEFAULT_MUSCLE_COLORS.length];
+    });
+    return map;
+  }, [muscleGroups]);
+
   const currentMonthLabel =
     mode === "month" || dateParam
       ? new Date(displayYear, displayMonth - 1, 1).toLocaleString(undefined, { month: "long", year: "numeric" })
@@ -127,6 +189,37 @@ export default function WorkoutsListPage() {
     mode === "month" || dateParam
       ? getMonthCalendarCells(displayYear, displayMonth)
       : [];
+
+  const goPrevMonth = () => {
+    if (dateParam) {
+      const d = new Date(displayYear, displayMonth - 1, 0);
+      router.push(`/workouts?date=${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+    } else {
+      if (calendarMonth <= 1) {
+        setCalendarYear((y) => y - 1);
+        setCalendarMonth(12);
+      } else {
+        setCalendarMonth((m) => m - 1);
+      }
+    }
+  };
+  const goNextMonth = () => {
+    const isCurrent = displayYear === now.getFullYear() && displayMonth === now.getMonth() + 1;
+    if (isCurrent && !dateParam) return;
+    if (dateParam) {
+      const d = new Date(displayYear, displayMonth, 1);
+      if (d > now) return;
+      router.push(`/workouts?date=${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+    } else {
+      if (calendarMonth >= 12) {
+        setCalendarYear((y) => y + 1);
+        setCalendarMonth(1);
+      } else {
+        setCalendarMonth((m) => m + 1);
+      }
+    }
+  };
+  const isNextDisabled = displayYear === now.getFullYear() && displayMonth >= now.getMonth() + 1;
 
   return (
     <>
@@ -158,7 +251,32 @@ export default function WorkoutsListPage() {
         {/* Month view or single-date view: header + calendar strip */}
         {(mode === "month" || dateParam) && (
           <div className="mb-6">
-            <p className="text-sm font-semibold text-muted-foreground mb-3">{currentMonthLabel}</p>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0 rounded-lg"
+                onClick={goPrevMonth}
+                aria-label="Previous month"
+              >
+                <ChevronLeft className="size-5" />
+              </Button>
+              <p className="text-sm font-semibold text-muted-foreground min-w-[140px] text-center">
+                {currentMonthLabel}
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0 rounded-lg disabled:opacity-50"
+                onClick={goNextMonth}
+                disabled={isNextDisabled}
+                aria-label="Next month"
+              >
+                <ChevronRight className="size-5" />
+              </Button>
+            </div>
             <div className="grid grid-cols-7 gap-1 text-center">
               {["S", "M", "T", "W", "T", "F", "S"].map((d) => (
                 <span key={d} className="text-[10px] font-medium text-muted-foreground/70 uppercase">
@@ -172,13 +290,27 @@ export default function WorkoutsListPage() {
                   <Link
                     key={cell.dateKey}
                     href={`/workouts?date=${cell.dateKey}`}
-                    className={`aspect-square rounded-lg flex items-center justify-center text-xs font-medium transition-colors hover:ring-2 hover:ring-primary/50 ${
+                    className={`aspect-square rounded-lg flex flex-col items-center justify-center text-xs font-medium transition-colors hover:ring-2 hover:ring-primary/50 min-w-0 ${
                       workoutDateKeys.has(cell.dateKey!)
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-primary/15 text-foreground"
                         : "bg-muted/50 text-muted-foreground"
                     } ${dateParam === cell.dateKey ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
                   >
-                    {cell.day}
+                    <span>{cell.day}</span>
+                    {workoutDateKeys.has(cell.dateKey!) && dayMuscles[cell.dateKey!] && (
+                      <div className="flex w-full gap-0.5 mt-1 px-0.5">
+                        {dayMuscles[cell.dateKey!].slice(0, 4).map((m, idx) => (
+                          <div
+                            key={m.name}
+                            className="flex-1 min-w-0 h-1 rounded-full shrink-0"
+                            style={{
+                              backgroundColor: muscleNameToColor[m.name] ?? DEFAULT_MUSCLE_COLORS[idx % DEFAULT_MUSCLE_COLORS.length],
+                            }}
+                            title={m.name}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </Link>
                 )
               )}

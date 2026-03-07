@@ -468,11 +468,18 @@ export interface ConsistencyDay {
 export function ConsistencyHeatmap({
     days,
     className,
+    year,
+    onPrevYear,
+    onNextYear,
+    nextDisabled,
 }: {
     year?: number;
     month?: number | null;
     days: ConsistencyDay[];
     className?: string;
+    onPrevYear?: () => void;
+    onNextYear?: () => void;
+    nextDisabled?: boolean;
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const byDate = Object.fromEntries(days.map((d) => [d.date, d]));
@@ -532,15 +539,41 @@ export function ConsistencyHeatmap({
     return (
         <Card className={className}>
             <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                    <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                        <Calendar className="size-5" />
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                            <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                                <Calendar className="size-5" />
+                            </div>
+                            Consistency Grid
+                        </CardTitle>
+                        <CardDescription className="text-muted-foreground">
+                            Last 365 days. Darker = more volume.
+                        </CardDescription>
                     </div>
-                    Consistency Grid
-                </CardTitle>
-                <CardDescription className="text-muted-foreground">
-                    Last 365 days. Darker = more volume.
-                </CardDescription>
+                    {year != null && onPrevYear && onNextYear && (
+                        <div className="flex items-center gap-1 rounded-lg bg-muted/60 p-1 shrink-0">
+                            <button
+                                type="button"
+                                onClick={onPrevYear}
+                                className="size-8 flex items-center justify-center rounded-md hover:bg-background transition-colors text-muted-foreground hover:text-foreground"
+                                aria-label="Previous year"
+                            >
+                                ←
+                            </button>
+                            <span className="min-w-[3rem] text-center text-sm font-semibold tabular-nums">{year}</span>
+                            <button
+                                type="button"
+                                onClick={onNextYear}
+                                disabled={nextDisabled}
+                                className="size-8 flex items-center justify-center rounded-md hover:bg-background transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
+                                aria-label="Next year"
+                            >
+                                →
+                            </button>
+                        </div>
+                    )}
+                </div>
             </CardHeader>
             <CardContent>
                 <div
